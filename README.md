@@ -1,23 +1,53 @@
-# 🦆 Goose Migration Game - Web Version
+# 🦆 Goose Migration Game - Advanced Ecological Simulation
 
-A fun browser-based game simulating goose lifecycle, breeding, and survival against predators!
+A browser-based ecological simulation game featuring **stochastic modeling**, **normal distributions**, **individual genetic variation**, and **dynamic environmental systems**. Watch geese migrate, breed, and survive in realistic climate zones with day/night cycles and adaptive terrain!
 
-## 🎮 Features
+**Built with Python/Flask backend, pure JavaScript/Canvas frontend, and advanced Monte Carlo simulation techniques.**
 
-- **Full Lifecycle System**: Eggs → Goslings → Adult Geese
-- **Smart Predator AI**: Foxes and eagles hunt your flock
-- **Breeding Mechanics**: Males + females automatically produce eggs
-- **Interactive Hiding**: Click geese to make them hide in bushes
-- **Environmental Features**: Ponds and bushes provide safety
-- **Real-time Scoring**: Earn points as goslings mature
+---
+
+## 🌟 Key Features
+
+### 🎲 **Advanced Stochastic Simulation**
+- **Normal Distribution Sampling** (Box-Muller transform) for realistic variation
+- **Individual Genetic Variation** - Each goose has unique survival rates
+- **Multi-Parameter Probability** - Genetics × Climate × Energy interactions
+- **Monte Carlo Methods** - Population dynamics with emergent complexity
+- **Variable Growth Times** - N(3, 0.5) weeks for eggs, N(8, 1.5) for goslings
+- **Dynamic Clutch Sizes** - N(4, 1.5) eggs per breeding (1-8 range)
+
+### 🌍 **Geographic & Climate System**
+- **Real Latitude/Longitude** tracking (45°N, 75°W starting position)
+- **5 Climate Zones**: Arctic, Subarctic, Temperate, Subtropical, Tropical
+- **Climate-Based Survival Rates** - Harsh climates reduce survival chances
+- **Directional Migration** - Move North/South/East/West to change location
+- **Dynamic Terrain Generation** - Vegetation and water vary by climate
+- **Day/Night Cycle** - Full 24-hour cycle with visual atmosphere changes
+
+### 🎮 **Interactive Gameplay**
+- **Keyboard Controls** - Arrow keys/WASD to pan the camera
+- **Mouse Controls** - Click geese to hide them in bushes
+- **Real-Time Event Log** - See everything happening (breeding, deaths, storms)
+- **10-Second Safe Period** - Learn controls before predators attack
+- **Fullscreen Mode** - Optimized compact view
+- **Density-Dependent Predation** - More geese = more predators
+
+### 📊 **Visual Features**
+- **Real Animal Images** - Geese, goslings, eggs, foxes, eagles, bushes
+- **Day/Night Visuals** - Blue sky transitions to starry night
+- **Color-Coded Events** - Green (positive), orange (warning), red (danger)
+- **Time Display** - Shows game time with ☀️/🌙 icon and 24-hour clock
+- **Climate-Based Terrain** - Arctic tundra vs tropical wetlands
+
+---
 
 ## 🚀 Quick Start
 
-### Prerequisites
-- Python 3.7+ (check with `python --version`)
-- That's it!
+### Requirements
+- **Python 3.7+** (check with `python --version`)
+- That's it! Flask is included in requirements.txt
 
-### Installation & Running
+### Installation
 
 ```bash
 # 1. Navigate to project folder
@@ -30,183 +60,151 @@ pip install -r requirements.txt
 python app.py
 
 # 4. Open your browser to:
-#    http://localhost:5000
+# http://localhost:5000
 ```
 
-That's it! The game should be running in your browser! 🎉
+**Game starts automatically!** 🎉
+
+---
 
 ## 🎯 How to Play
 
-1. **Goal**: Keep your goose flock alive as long as possible
-2. **Click geese** to make them hide in bushes (safe for 3 seconds)
-3. **Watch them breed** - eggs appear automatically
-4. **Avoid predators** - foxes and eagles will hunt your flock
-5. **Earn points** - 10 points each time a gosling matures
+### Controls
+- **⌨️ Arrow Keys / WASD** - Pan the camera around the map
+- **🖱️ Click Geese** - Make individual geese hide in bushes
+- **🔘 Mate Button** - Trigger breeding attempt
+- **🌳 Hide All Button** - Send all geese to nearest bushes
+- **🧭 Migration Buttons** - Move North/South/East/West
+- **⛶ Fullscreen Button** - Toggle fullscreen mode
+- **⏸️ Pause/Reset** - Control game flow
 
-## 📁 Project Structure
+### Game Mechanics
 
-```
-GooseGameWeb/
-├── app.py                  # Flask server
-├── requirements.txt        # Python dependencies
-├── templates/
-│   └── index.html         # Main game page
-└── static/
-    ├── css/
-    │   └── style.css      # Styling
-    └── js/
-        └── game.js        # Game engine (all the logic!)
-```
+**Lifecycle:**
+1. **Eggs** 🥚 - Incubate for 2-4 weeks (variable per egg)
+2. **Goslings** 🐥 - Grow for 5-11 weeks (variable per individual)
+3. **Adults** 🦆 - Can breed and migrate
 
-## 🛠️ Tech Stack
+**Breeding:**
+- Requires 1 male + 1 female adult with >50% energy
+- 65-95% success chance (varies per attempt)
+- Produces 1-8 eggs (usually 3-5) per successful breeding
+- 5-minute cooldown between breeding attempts
+
+---
+
+## 🌡️ Climate System
+
+### Climate Zones & Effects
+
+| Climate | Latitude | Survival | Terrain |
+|---------|----------|----------|---------|
+| **Arctic** | >60°N | 60% | 1 pond, 1 bush (sparse) |
+| **Subarctic** | 50-60°N | 80% | 2 ponds, 2 bushes |
+| **Temperate** | 35-50°N | 100% ✨ | 2-3 ponds, 3-4 bushes |
+| **Subtropical** | 20-35°N | 85% | 2 ponds, 3 bushes |
+| **Tropical** | <20°N | 70% | 3-4 ponds, 4-5 bushes (lush) |
+
+**Strategy:** Migrate to Temperate zones for optimal breeding!
+
+---
+
+## 🛠️ Technical Architecture
+
+### Technology Stack
 
 **Backend:**
-- Python 3
-- Flask (lightweight web framework)
+- **Python 3** - Server runtime
+- **Flask** - Web framework
 
 **Frontend:**
-- HTML5 Canvas for rendering
-- Vanilla JavaScript (no frameworks!)
-- CSS3 for styling
+- **HTML5 Canvas** - 2D graphics (60 FPS)
+- **Vanilla JavaScript** - No frameworks (1300+ lines)
+- **CSS3** - Modern styling
 
-## 🎨 Game Architecture
+**Simulation:**
+- **Monte Carlo Methods** - Stochastic modeling
+- **Normal Distributions** - Box-Muller transform
+- **Agent-Based Modeling** - Individual entities
+- **Event-Driven Architecture** - Real-time logging
 
-### Classes (in JavaScript)
-
-1. **Goose** - Manages goose state, movement, and rendering
-   - States: EGG, GOSLING, ADULT
-   - Movement AI: Goslings follow parents, adults wander
-   
-2. **Predator** - AI-controlled hunters
-   - Types: FOX, EAGLE
-   - Hunting behavior: Chase nearby visible geese
-   
-3. **Pond** - Safe water areas
-   
-4. **Bush** - Hiding spots for geese
-   
-5. **Game** - Main game controller
-   - Game loop at 60 FPS
-   - Collision detection
-   - Breeding system
-   - Score tracking
-
-## 💡 Code Highlights
-
-### Object-Oriented JavaScript
-```javascript
-class Goose {
-    constructor(state, weeksLeft, x, y, gender = 'female', parent = null) {
-        this.state = state;
-        // ... properties
-    }
-    
-    move(width, height) {
-        // Movement logic with parent following
-    }
-    
-    draw(ctx) {
-        // Canvas rendering for different states
-    }
-}
-```
-
-### AI Pathfinding
-```javascript
-findNearestGoose(geese) {
-    let nearest = null;
-    let minDist = Infinity;
-    for (const goose of geese) {
-        if (goose.state !== GooseState.EGG && !goose.hiding) {
-            const dist = this.distance(goose);
-            if (dist < minDist) {
-                minDist = dist;
-                nearest = goose;
-            }
-        }
-    }
-    return nearest;
-}
-```
-
-### Game Loop
-```javascript
-function gameLoop() {
-    game.update();  // Update game state
-    game.draw();    // Render to canvas
-    requestAnimationFrame(gameLoop);  // 60 FPS
-}
-```
+---
 
 ## 🎓 Skills Demonstrated
 
-✅ **Python/Flask** - Web server setup and routing  
-✅ **JavaScript** - OOP, game loops, algorithms  
-✅ **HTML5 Canvas** - 2D graphics rendering  
-✅ **CSS** - Modern styling with gradients and animations  
-✅ **Game Development** - State machines, AI, collision detection  
-✅ **Clean Code** - Well-organized, commented, modular  
+### Computer Science
+✅ Object-Oriented Programming
+✅ Game Loops (60 FPS)
+✅ State Machines
+✅ AI Pathfinding
+✅ Event-Driven Architecture
+✅ Canvas API Graphics
 
-## 🔧 Customization Ideas
+### Statistics & Simulation
+✅ Monte Carlo Simulation
+✅ Normal Distributions
+✅ Stochastic Processes
+✅ Population Dynamics
+✅ Agent-Based Modeling
+✅ Multi-Parameter Systems
 
-Want to expand the game? Try adding:
+### Web Development
+✅ Flask Server
+✅ Client-Server Architecture
+✅ Responsive Design
+✅ Asset Management
+✅ Keyboard/Mouse Input
 
-- [ ] Sound effects with Web Audio API
-- [ ] Different difficulty levels
-- [ ] More predator types
-- [ ] Weather effects (wind, rain)
-- [ ] Backend high score system with database
-- [ ] Multiplayer with WebSockets
-- [ ] Mobile touch controls
-- [ ] Save/load game state
+---
 
-## 🐛 Troubleshooting
+## 💡 Resume Talking Points
 
-**Port already in use?**
+**This project demonstrates:**
+
+✨ **Advanced JavaScript** - 1300+ lines of OOP code
+✨ **Statistical Modeling** - Normal distributions, Monte Carlo
+✨ **Game Development** - 60 FPS loop, AI, collisions
+✨ **Full-Stack Skills** - Python/Flask + Canvas
+✨ **Algorithm Design** - Pathfinding, state machines
+✨ **Mathematical Modeling** - Multi-parameter probability
+
+**Interview Answer:**
+> "I built an ecological simulation using Monte Carlo methods and normal distributions. Each goose has individual genetic variation sampled from bell curves, and survival depends on genetics × climate × energy. The simulation creates emergent population dynamics including boom-bust cycles and natural selection. I used pure JavaScript with Canvas for 60 FPS rendering, and implemented day/night cycles, keyboard controls, and climate-based terrain generation."
+
+---
+
+## 🚀 Deployment
+
+### Heroku
 ```bash
-# Change port in app.py:
-app.run(debug=True, port=5001)  # Use different port
-```
-
-**Flask not found?**
-```bash
-pip install Flask
-```
-
-**Python not found?**
-- Download from [python.org](https://python.org)
-- Make sure to check "Add Python to PATH" during installation
-
-## 📝 License
-
-MIT License - Free to use and modify!
-
-## 🚀 Deploying (Optional)
-
-Want to share your game online?
-
-### Option 1: GitHub Pages (Static Only)
-- Remove Flask, serve static files directly
-- Push to GitHub with GitHub Actions
-
-### Option 2: Heroku (Free tier)
-```bash
-# Add Procfile:
-web: python app.py
-
-# Deploy:
+echo "web: python app.py" > Procfile
 heroku create
 git push heroku main
 ```
 
-### Option 3: Replit
-- Upload project to [replit.com](https://replit.com)
-- Click "Run" - automatically detects Flask!
+### Replit
+1. Upload to [replit.com](https://replit.com)
+2. Click "Run" - auto-detects Flask!
 
-## 🎉 That's It!
-
-Enjoy the game! Feel free to customize and expand it. This is a great portfolio project showing full-stack web development skills.
+### GitHub Pages (Static)
+Remove Flask, use static HTML hosting
 
 ---
 
-Made with 🦆 and ❤️
+## 📝 License
+
+**MIT License** - Free to use and modify!
+
+---
+
+## 🙏 Acknowledgments
+
+- Inspired by real goose migration patterns
+- Climate zones based on Köppen classification
+- Monte Carlo techniques from statistical literature
+
+---
+
+**Made with 🦆, 🎲, and ❤️**
+
+*A simulation showcasing advanced stochastic modeling and ecological dynamics*
