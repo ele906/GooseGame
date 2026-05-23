@@ -6,135 +6,8 @@
     <title>🪿 Goose Migration Game - AI Powered</title>
     <link rel="stylesheet" href="static/css/style.css">
     
-    <style>
-        /* AI Panel Styles */
-        #ai-overlay {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            width: 340px;
-            z-index: 1000;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
-        }
-        
-        .ai-panel {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 12px;
-            padding: 16px;
-            margin-bottom: 12px;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
-            color: white;
-            animation: slideIn 0.5s ease;
-            transition: transform 0.2s;
-        }
-        
-        .ai-panel:hover {
-            transform: translateY(-2px);
-        }
-        
-        @keyframes slideIn {
-            from { transform: translateX(400px); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
-        
-        .ai-panel h3 {
-            margin: 0 0 10px 0;
-            font-size: 14px;
-            font-weight: bold;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            letter-spacing: 0.5px;
-        }
-        
-        .ai-panel p {
-            margin: 0;
-            font-size: 13px;
-            line-height: 1.5;
-            background: rgba(255,255,255,0.15);
-            padding: 12px;
-            border-radius: 8px;
-            min-height: 40px;
-            backdrop-filter: blur(10px);
-        }
-        
-        .ai-loading {
-            opacity: 0.6;
-            font-style: italic;
-        }
-        
-        .ai-controls {
-            display: flex;
-            gap: 8px;
-            margin-top: 10px;
-        }
-        
-        .ai-btn {
-            flex: 1;
-            padding: 8px 12px;
-            border: none;
-            border-radius: 6px;
-            background: rgba(255,255,255,0.2);
-            color: white;
-            cursor: pointer;
-            font-size: 11px;
-            font-weight: 600;
-            transition: all 0.2s;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        
-        .ai-btn:hover {
-            background: rgba(255,255,255,0.3);
-            transform: translateY(-1px);
-        }
-        
-        .ai-status {
-            font-size: 10px;
-            opacity: 0.7;
-            margin-top: 6px;
-            text-align: center;
-        }
-
-        .ai-badge {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: bold;
-            z-index: 999;
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-        }
-
-        @media (max-width: 768px) {
-            #ai-overlay {
-                width: 280px;
-                bottom: 10px;
-                right: 10px;
-            }
-            .ai-badge {
-                top: 10px;
-                right: 10px;
-                font-size: 10px;
-                padding: 6px 12px;
-            }
-        }
-    </style>
 </head>
 <body>
-    <!-- AI Badge -->
-    <div class="ai-badge">🤖 AI Powered</div>
-
     <div class="container">
         <header>
             <h1>🪿 Goose Migration Game</h1>
@@ -201,7 +74,6 @@
                 <li>🌳 Click individual geese or use "Hide All" button to hide in bushes</li>
                 <li>💕 Use "Mate" button to breed (80% success rate, requires energy)</li>
                 <li>🧭 <strong>Migrate North/South/East/West</strong> - changes latitude/longitude!</li>
-                <li>🤖 <strong>NEW: AI Narrator</strong> provides real-time commentary on your flock!</li>
                 <li>🌡️ <strong>Climate zones affect survival</strong>:
                     <ul style="margin-top: 5px; font-size: 0.95em;">
                         <li>❄️ Temperate (30-50°N): <strong>Best survival (100%)</strong></li>
@@ -226,37 +98,12 @@
                     <li>🎯 Predator attacks use distance-based probability calculations</li>
                     <li>⚡ Energy loss during migration with weather variance</li>
                     <li>⛈️ Random environmental events (storms) can strike anywhere</li>
-                    <li>🤖 <strong>AI-Powered by Cloudflare Workers AI (Llama 3.3)</strong></li>
                 </ul>
             </div>
         </div>
     </div>
 
-    <!-- AI Overlay -->
-    <div id="ai-overlay">
-        <div class="ai-panel">
-            <h3>🎙️ AI Narrator</h3>
-            <p id="narrator-text" class="ai-loading">Observing your flock...</p>
-            <div class="ai-status">Powered by Cloudflare AI</div>
-        </div>
-        
-        <div class="ai-panel">
-            <h3>💡 Strategic Advice</h3>
-            <p id="advice-text" class="ai-loading">Analyzing situation...</p>
-            <div class="ai-controls">
-                <button class="ai-btn" onclick="window.gooseAI && window.gooseAI.getAdviceNow()">
-                    Get Advice
-                </button>
-                <button class="ai-btn" onclick="window.gooseAI && window.gooseAI.toggleAI()">
-                    Toggle AI
-                </button>
-            </div>
-            <div class="ai-status" id="ai-status-text">Active</div>
-        </div>
-    </div>
-
     <!-- Game Scripts -->
     <script src="static/js/game.js"></script>
-    <script src="static/js/ai-integration.js"></script>
 </body>
 </html>

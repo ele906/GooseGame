@@ -40,3 +40,7 @@ Thumbs.db
 
 # Environment
 .env
+
+# Node / Cloudflare
+node_modules/
+.wrangler/
