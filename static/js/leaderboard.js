@@ -1,5 +1,5 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, orderBy, limit }
+import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, orderBy, limit, where }
     from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 import { getAuth, signInWithPopup, GoogleAuthProvider, signOut }
     from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
@@ -21,18 +21,24 @@ function sanitizeUsername(name) {
     return name.replace(/[^a-zA-Z0-9_]/g, '').slice(0, 20);
 }
 
-export async function submitScore(rawUsername, score) {
+export async function submitScore(rawUsername, score, difficulty) {
     const username = sanitizeUsername(rawUsername);
     if (!username) throw new Error('Invalid username');
     await addDoc(collection(db, 'scores'), {
         username,
         score,
+        difficulty,
         createdAt: Date.now()
     });
 }
 
-export async function getTopScores(n = 10) {
-    const q = query(collection(db, 'scores'), orderBy('score', 'desc'), limit(n));
+export async function getTopScores(difficulty, n = 10) {
+    const q = query(
+        collection(db, 'scores'),
+        where('difficulty', '==', difficulty),
+        orderBy('score', 'desc'),
+        limit(n)
+    );
     const snap = await getDocs(q);
     return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }

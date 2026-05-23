@@ -156,7 +156,12 @@
     <div class="modal-overlay hidden" id="leaderboardModal">
         <div class="modal-box">
             <h3>Leaderboard</h3>
-            <table style="width:100%;border-collapse:collapse;margin-top:8px;">
+            <div style="display:flex;gap:8px;margin-bottom:12px;">
+                <button class="lb-tab btn btn-diff active-tab" data-diff="easy">Easy</button>
+                <button class="lb-tab btn btn-diff" data-diff="normal">Normal</button>
+                <button class="lb-tab btn btn-diff" data-diff="hard">Hard</button>
+            </div>
+            <table style="width:100%;border-collapse:collapse;">
                 <thead><tr style="border-bottom:2px solid #333;"><th style="text-align:left;padding:6px;">Rank</th><th style="text-align:left;padding:6px;">Username</th><th style="text-align:right;padding:6px;">Score</th></tr></thead>
                 <tbody id="leaderboardBody"></tbody>
             </table>

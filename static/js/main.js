@@ -1,6 +1,6 @@
 import {
     getResponsiveCanvasSize, setCanvasSize,
-    applyDifficulty, GooseState,
+    applyDifficulty, GooseState, currentDifficulty,
 } from './constants.js';
 import { Game } from './game.js';
 
@@ -214,7 +214,7 @@ window.addEventListener('load', () => {
         errorEl.textContent = '';
         document.getElementById('submitScoreBtn').textContent = 'Submitting...';
         try {
-            await submitScore(clean, game.score);
+            await submitScore(clean, game.score, currentDifficulty);
             document.getElementById('scoreModal').classList.add('hidden');
         } catch {
             errorEl.textContent = 'Failed to submit, try again.';
@@ -227,15 +227,28 @@ window.addEventListener('load', () => {
     });
 
     // Leaderboard viewer
-    document.getElementById('leaderboardBtn').addEventListener('click', async () => {
+    async function loadLeaderboard(difficulty) {
         const body = document.getElementById('leaderboardBody');
-        document.getElementById('leaderboardModal').classList.remove('hidden');
         if (!getTopScores) { body.innerHTML = '<tr><td colspan="3" style="padding:6px;color:#888">Leaderboard not available.</td></tr>'; return; }
         body.innerHTML = '<tr><td colspan="3">Loading...</td></tr>';
-        const scores = await getTopScores(10);
+        const scores = await getTopScores(difficulty, 10);
         body.innerHTML = scores.length ? scores.map((s, i) =>
             `<tr><td style="padding:6px">${i + 1}</td><td style="padding:6px">${s.username}</td><td style="text-align:right;padding:6px">${s.score}</td></tr>`
         ).join('') : '<tr><td colspan="3" style="padding:6px;color:#888">No scores yet!</td></tr>';
+    }
+
+    document.getElementById('leaderboardBtn').addEventListener('click', () => {
+        document.getElementById('leaderboardModal').classList.remove('hidden');
+        const activeDiff = document.querySelector('.lb-tab.active-tab')?.dataset.diff || currentDifficulty;
+        loadLeaderboard(activeDiff);
+    });
+
+    document.querySelectorAll('.lb-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            document.querySelectorAll('.lb-tab').forEach(t => t.classList.remove('active-tab'));
+            tab.classList.add('active-tab');
+            loadLeaderboard(tab.dataset.diff);
+        });
     });
 
     document.getElementById('closeLeaderboardBtn').addEventListener('click', () => {
