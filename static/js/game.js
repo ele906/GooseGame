@@ -212,11 +212,9 @@ export class Game {
     advanceWeek() {
         this.week++;
         if (this.week > 4) { this.week = 1; this.month = (this.month + 1) % 12; }
-        //this.geese.forEach(g => { if (g.weeksLeft > 0) g.weeksLeft--; });
         this.geese.forEach(g => {
-            if (g.state === GooseState.ADULT) {
-                g.ageWeeks++;
-            }
+            if (g.weeksLeft > 0) g.weeksLeft--;
+            if (g.state === GooseState.ADULT) g.ageWeeks++;
         });
         for (let i = this.geese.length - 1; i >= 0; i--) {
             const g = this.geese[i];
