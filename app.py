@@ -1,18 +1,16 @@
 """
 Goose Migration Game - Flask Web Server
 """
-from flask import Flask, render_template, jsonify
-import random
+from flask import Flask, jsonify, send_from_directory
+import os
 
 app = Flask(__name__)
 
-# Game state will be managed on client side (JavaScript)
-# This server just serves the game
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 @app.route('/')
 def index():
-    """Serve the main game page"""
-    return render_template('index.html')
+    return send_from_directory(BASE_DIR, 'index.html')
 
 @app.route('/api/highscore', methods=['GET'])
 def get_highscore():
