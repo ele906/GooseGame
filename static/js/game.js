@@ -77,6 +77,7 @@ export class Game {
         this.breedingCooldown = 0;
         this.totalBorn = 0;
         this.totalDied = 0;
+        this.hideDuration = 8000; // 8 seconds
 
         this.month = Math.floor(Math.random() * 12);
         this.week  = Math.floor(Math.random() * 4) + 1;
@@ -92,7 +93,7 @@ export class Game {
 
         this.fastMigration   = false;
         this.weeksAtLocation    = 0;
-        this.vegWarnThreshold   = 4 + Math.floor(Math.random() * 5); // 4–8, mean 6
+        this.vegWarnThreshold = 10 + Math.floor(Math.random() * 7);
 
         const ls = (src) => { const a = new Audio(src); a.preload = 'auto'; return a; };
         this.sounds = {
@@ -211,7 +212,23 @@ export class Game {
     advanceWeek() {
         this.week++;
         if (this.week > 4) { this.week = 1; this.month = (this.month + 1) % 12; }
-        this.geese.forEach(g => { if (g.weeksLeft > 0) g.weeksLeft--; });
+        //this.geese.forEach(g => { if (g.weeksLeft > 0) g.weeksLeft--; });
+        this.geese.forEach(g => {
+            if (g.state === GooseState.ADULT) {
+                g.ageWeeks++;
+            }
+        });
+        for (let i = this.geese.length - 1; i >= 0; i--) {
+            const g = this.geese[i];
+
+            if (g.state === GooseState.ADULT && g.ageWeeks > 260) {
+                if (Math.random() < 0.08) {
+                    this.geese.splice(i, 1);
+                    this.totalDied++;
+                    this.logEvent('🪶 An old goose passed away of old age.', 'warning');
+                }
+            }
+        }
 
         this.weatherWeeksLeft--;
         if (this.weatherWeeksLeft <= 0) this.changeWeather();
@@ -264,15 +281,30 @@ export class Game {
         }
 
     changeWeather() {
-        const r = Math.random();
-        this.weather = r < 0.55 ? 'sunny' : r < 0.80 ? 'rain' : 'storm';
+    const r = Math.random();
+
+    if (currentDifficulty === 'easy') {
+        // Easy: mostly sunny, rare storms
+        this.weather = r < 0.70 ? 'sunny' : r < 0.95 ? 'rain' : 'storm';
+        } else if (currentDifficulty === 'normal') {
+            // Normal: current-ish behavior, slightly gentler
+            this.weather = r < 0.60 ? 'sunny' : r < 0.85 ? 'rain' : 'storm';
+        } else {
+            // Hard: storms are more common
+            this.weather = r < 0.45 ? 'sunny' : r < 0.75 ? 'rain' : 'storm';
+        }
+
         this.weatherWeeksLeft = 2 + Math.floor(Math.random() * 5);
+
         if (this.weather === 'storm') {
             this.predators.forEach(p => { p.leaving = true; });
         }
+
         this.startAmbientForWeather();
+
         const icons = { sunny: '☀️', rain: '🌧️', storm: '⛈️' };
         const names = { sunny: 'Sunny', rain: 'Rain', storm: 'Storm!' };
+
         this.logEvent(`${icons[this.weather]} Weather changed: ${names[this.weather]}`,
             this.weather === 'storm' ? 'important' : 'normal');
     }
@@ -366,7 +398,10 @@ export class Game {
                     goose.y = nearestBush.y;
                     const name = goose.state === GooseState.GOSLING ? 'gosling' : 'goose';
                     this.logEvent(`🌳 A ${name} is hiding!`, 'normal');
-                    setTimeout(() => { goose.hiding = false; }, 3000);
+                    clearTimeout(goose.hideTimer);
+                        goose.hideTimer = setTimeout(() => {
+                            goose.hiding = false;
+                        }, this.hideDuration);
                 }
                 break;
             }
@@ -523,7 +558,7 @@ export class Game {
 
         if (this.geese.length === 0) {
             this.gameOver = true;
-            this.logEvent('☠️ Game Over! All geese are gone', 'important');
+            this.logEvent('☠️ Game Over! All geese have sadly passed away', 'important');
         }
 
         this.updateUI();
@@ -743,7 +778,10 @@ export class Game {
                 goose.x = nearestBush.x;
                 goose.y = nearestBush.y;
                 hiddenCount++;
-                setTimeout(() => { goose.hiding = false; }, 3000);
+                clearTimeout(goose.hideTimer);
+                goose.hideTimer = setTimeout(() => {
+                    goose.hiding = false;
+                }, this.hideDuration);
             }
         });
         if (hiddenCount > 0) {
@@ -811,14 +849,23 @@ export class Game {
         }
 
         if (this.gameOver) {
+            const survivedWeeks = Math.floor(this.gameTime / 120);
+
             this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
             this.ctx.fillRect(0, 0, this.width, this.height);
+
             this.ctx.fillStyle = 'white';
-            this.ctx.font      = 'bold 60px Arial';
             this.ctx.textAlign = 'center';
-            this.ctx.fillText('Game Over!', this.width / 2, this.height / 2);
+
+            this.ctx.font = 'bold 60px Arial';
+            this.ctx.fillText('Game Over!', this.width / 2, this.height / 2 - 40);
+
             this.ctx.font = 'bold 30px Arial';
-            this.ctx.fillText(`Final Score: ${this.score}`, this.width / 2, this.height / 2 + 50);
+            this.ctx.fillText(
+                `Congrats, you survived ${survivedWeeks} week${survivedWeeks === 1 ? '' : 's'}!`,
+                this.width / 2,
+                this.height / 2 + 15
+            );
         }
 
         if (this.manuallyPaused && !this.migrationOverlayActive && !this.gameOver) {
