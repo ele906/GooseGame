@@ -205,6 +205,12 @@ h1 {
     font-weight: 900;
 }
 
+.btn-diff:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
 .btn:hover {
     transform: translateY(-2px);
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
@@ -248,6 +254,11 @@ h1 {
     font-size: 1em;
     font-weight: bold;
     color: #3a6a9a;
+}
+
+.info-box-date div {
+    font-size: 1.1em;
+    color: #1a3a5c;
 }
 
 .instructions {

@@ -1,614 +1,196 @@
-// Game constants - will be set after page loads
-let CANVAS_WIDTH = 1000;
-let CANVAS_HEIGHT = 600;
-const FPS = 60;
+import {
+    CANVAS_WIDTH, CANVAS_HEIGHT,
+    SIMULATION_PARAMS, DIFFICULTY_SETTINGS, currentDifficulty,
+    GooseState, PredatorType,
+    clamp, randomNormal,
+} from './constants.js';
+import { getClimateZone, getVegTypes } from './climate.js';
+import { Goose }      from './Goose.js';
+import { Predator }   from './Predator.js';
+import { Pond, Bush } from './Terrain.js';
 
-// Function to get responsive canvas size
-const getResponsiveCanvasSize = () => {
-    const maxWidth = Math.min(window.innerWidth * 0.9, 1000);
-    const maxHeight = Math.min(window.innerHeight * 0.65, 750);
-    return { width: maxWidth, height: maxHeight };
-};
-
-// Monte Carlo simulation parameters
-const SIMULATION_PARAMS = {
-    // Survival probabilities with individual variation
-    EGG_SURVIVAL_MEAN: 0.85,
-    EGG_SURVIVAL_STDDEV: 0.10,      // Individual eggs vary ±10%
-    
-    GOSLING_SURVIVAL_MEAN: 0.70,
-    GOSLING_SURVIVAL_STDDEV: 0.12,  // Individual goslings vary ±12%
-    
-    PREDATOR_CATCH_PROBABILITY: 0.02,
-    
-    // Breeding parameters with normal distribution
-    BREEDING_SUCCESS_MEAN: 0.80,
-    BREEDING_SUCCESS_STDDEV: 0.15,
-    BREEDING_COOLDOWN: 300,
-    
-    // Clutch size (eggs per breeding) - normal distribution
-    CLUTCH_SIZE_MEAN: 4,           // Average 4 eggs per clutch
-    CLUTCH_SIZE_STDDEV: 1.5,       // Varies between 2-6 typically
-    CLUTCH_SIZE_MIN: 1,
-    CLUTCH_SIZE_MAX: 8,
-    
-    // Migration stochastic factors
-    MIGRATION_ENERGY_LOSS: 0.1,
-    MIGRATION_SUCCESS_RATE: 0.95,
-    WEATHER_VARIANCE: 0.3,
-    
-    // Random events
-    RANDOM_EVENT_CHANCE: 0.001,
-    
-    // Safe period before predators become active
-    SAFE_PERIOD_SECONDS: 10,
-    
-    // Latitude/Longitude effects
-    LATITUDE_MIN: -60,
-    LATITUDE_MAX: 75,
-    OPTIMAL_LATITUDE_MIN: 35,
-    OPTIMAL_LATITUDE_MAX: 55,
-    LATITUDE_SURVIVAL_PENALTY: 0.3,
-    
-    MIGRATION_DISTANCE: 150
-};
-
-let currentDifficulty = 'normal';
-
-const DIFFICULTY_SETTINGS = {
-    easy:   { startPredators: 0, catchProb: 0.01, spawnThreshold: 8,  spawnInterval: 2400 },
-    normal: { startPredators: 2, catchProb: 0.02, spawnThreshold: 3,  spawnInterval: 1800 },
-    hard:   { startPredators: 4, catchProb: 0.04, spawnThreshold: 2,  spawnInterval: 1200 }
-};
-
-function applyDifficulty(level) {
-    currentDifficulty = level;
-    SIMULATION_PARAMS.PREDATOR_CATCH_PROBABILITY = DIFFICULTY_SETTINGS[level].catchProb;
-}
-
-// Helper: Generate normally distributed random number (Box-Muller transform)
-function randomNormal(mean, stddev) {
-    const u1 = Math.random();
-    const u2 = Math.random();
-    const z0 = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
-    return z0 * stddev + mean;
-}
-
-// Helper: Clamp value between min and max
-function clamp(value, min, max) {
-    return Math.min(Math.max(value, min), max);
-}
-
-// Climate zones based on latitude with varied survival rates
-const CLIMATE_ZONES = {
-    ARCTIC: { min: 60, max: 90, name: 'Arctic', color: '#a8d8ea', survivalMod: 0.6 },
-    SUBARCTIC: { min: 50, max: 60, name: 'Subarctic', color: '#b8e6f0', survivalMod: 0.8 },
-    TEMPERATE: { min: 30, max: 50, name: 'Temperate', color: '#98d8c8', survivalMod: 1.0 },
-    SUBTROPICAL: { min: 15, max: 30, name: 'Subtropical', color: '#f6d186', survivalMod: 0.85 },
-    TROPICAL: { min: -15, max: 15, name: 'Tropical', color: '#f7a072', survivalMod: 0.7 },
-    SOUTHERN_TEMPERATE: { min: -50, max: -15, name: 'S. Temperate', color: '#98d8c8', survivalMod: 0.9 },
-    ANTARCTIC: { min: -90, max: -50, name: 'Antarctic', color: '#d4e4f7', survivalMod: 0.5 }
-};
-
-function getClimateZone(latitude) {
-    for (const zone of Object.values(CLIMATE_ZONES)) {
-        if (latitude >= zone.min && latitude <= zone.max) {
-            return zone;
-        }
-    }
-    return CLIMATE_ZONES.TEMPERATE;
-}
-
-// Game states
-const GooseState = {
-    EGG: 'egg',
-    GOSLING: 'gosling',
-    ADULT: 'adult'
-};
-
-const PredatorType = {
-    FOX: 'fox',
-    EAGLE: 'eagle'
-};
-
-// Goose class
-class Goose {
-    constructor(state, weeksLeft, x, y, gender = 'female', parent = null) {
-        this.state = state;
-        
-        // Individual variation in development time using normal distribution
-        if (state === GooseState.EGG) {
-            // Egg incubation time: mean 3 weeks, stddev 0.5 weeks (2-4 weeks typically)
-            this.weeksToHatch = Math.round(clamp(
-                randomNormal(3, 0.5),
-                1.5, 5
-            ));
-            this.weeksLeft = this.weeksToHatch;
-        } else if (state === GooseState.GOSLING) {
-            // Gosling growth time: mean 8 weeks, stddev 1.5 weeks (5-11 weeks typically)
-            this.weeksToMature = Math.round(clamp(
-                randomNormal(8, 1.5),
-                4, 12
-            ));
-            this.weeksLeft = this.weeksToMature;
-        } else {
-            this.weeksLeft = weeksLeft;
-        }
-        
-        this.x = x;
-        this.y = y;
-        this.gender = gender;
-        this.parent = parent;
-        this.vx = Math.random() * 1.2 - 0.6;  // Slower movement
-        this.vy = Math.random() * 1.2 - 0.6;  // Slower movement
-        this.facingLeft = false;
-        this.health = 100;
-        this.ageWeeks = state === GooseState.ADULT ? 0 : -this.weeksLeft;
-        this.hiding = false;
-        this.hidingEndTime = 0;
-        
-        // Migration and stochastic properties
-        this.energy = 100;
-        this.migrating = false;
-        this.migrationTarget = null;
-        
-        // Individual genetic variation using normal distribution
-        if (state === GooseState.EGG) {
-            this.baseEggSurvival = clamp(
-                randomNormal(SIMULATION_PARAMS.EGG_SURVIVAL_MEAN, SIMULATION_PARAMS.EGG_SURVIVAL_STDDEV),
-                0.3, 1.0
-            );
-        } else {
-            this.baseEggSurvival = 1.0; // Already hatched
-        }
-        
-        this.baseGoslingSurvival = clamp(
-            randomNormal(SIMULATION_PARAMS.GOSLING_SURVIVAL_MEAN, SIMULATION_PARAMS.GOSLING_SURVIVAL_STDDEV),
-            0.3, 1.0
-        );
-        
-        this.survivalChance = this.calculateSurvivalChance();
-    }
-
-    calculateSurvivalChance() {
-        // Monte Carlo: Calculate survival probability based on multiple factors
-        let chance = 1.0;
-        
-        if (this.state === GooseState.EGG) {
-            chance *= this.baseEggSurvival; // Individual genetic variation
-        } else if (this.state === GooseState.GOSLING) {
-            chance *= this.baseGoslingSurvival; // Individual genetic variation
-        }
-        
-        // Energy affects survival
-        chance *= (this.energy / 100);
-        
-        // Latitude affects survival (if game reference exists)
-        if (this.game) {
-            const climate = getClimateZone(this.game.latitude);
-            chance *= climate.survivalMod;
-        }
-        
-        // Random environmental variance (smaller now since we have genetic variation)
-        chance *= (0.95 + Math.random() * 0.10);
-        
-        return Math.min(1.0, Math.max(0, chance));
-    }
-
-    move(width, height) {
-        if (this.state === GooseState.EGG) return;
-
-        // Migration behavior (stochastic movement towards target)
-        if (this.migrating && this.migrationTarget) {
-            const dx = this.migrationTarget.x - this.x;
-            const dy = this.migrationTarget.y - this.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-            
-            if (distance > 50) {
-                // Move towards target with random variance (Monte Carlo)
-                const weatherFactor = 1.0 + (Math.random() - 0.5) * SIMULATION_PARAMS.WEATHER_VARIANCE;
-                this.vx = (dx / distance * 3 + Math.random() * 2 - 1) * weatherFactor;
-                this.vy = (dy / distance * 3 + Math.random() * 2 - 1) * weatherFactor;
-                
-                // Lose energy during migration
-                this.energy -= SIMULATION_PARAMS.MIGRATION_ENERGY_LOSS;
-                
-                // Stochastic migration failure
-                if (this.energy <= 0 || Math.random() > SIMULATION_PARAMS.MIGRATION_SUCCESS_RATE) {
-                    this.migrating = false;
-                    this.energy = Math.max(10, this.energy);
-                }
-            } else {
-                this.migrating = false;
-                this.energy = Math.min(100, this.energy + 20); // Reached destination
-            }
-        }
-        // Goslings follow parent
-        else if (this.state === GooseState.GOSLING && this.parent) {
-            const dx = this.parent.x - this.x;
-            const dy = this.parent.y - this.y;
-            const factor = 15;
-            this.vx = dx / factor + Math.random() * 0.4 - 0.2;
-            this.vy = dy / factor + Math.random() * 0.4 - 0.2;
-        } else {
-            // Random wandering with stochastic variation
-            if (Math.random() < 0.05) {
-                this.vx += Math.random() - 0.5;
-                this.vy += Math.random() - 0.5;
-            }
-            
-            // Slowly regain energy when not migrating
-            if (this.energy < 100) {
-                this.energy += 0.05;
-            }
-        }
-
-        // Limit speed (slowed down for better visibility)
-        const maxSpeed = this.state === GooseState.GOSLING ? 0.4 : 0.9;  // Goslings much slower
-        const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
-        if (speed > maxSpeed) {
-            this.vx = (this.vx / speed) * maxSpeed;
-            this.vy = (this.vy / speed) * maxSpeed;
-        }
-
-        // Update position
-        this.x += this.vx;
-        this.y += this.vy;
-
-        // Bounce off edges (with margin to keep geese more visible)
-        const margin = 50;
-        if (this.x < margin || this.x > width - margin) this.vx *= -1;
-        if (this.y < margin || this.y > height - margin) this.vy *= -1;
-
-        // Keep in bounds with margin
-        this.x = Math.max(margin, Math.min(width - margin, this.x));
-        this.y = Math.max(margin, Math.min(height - margin, this.y));
-
-        // Update facing (with threshold to prevent jittering)
-        if (this.vx < -0.3) this.facingLeft = true;
-        else if (this.vx > 0.3) this.facingLeft = false;
-        
-        // Update survival chance periodically
-        if (Math.random() < 0.01) {
-            this.survivalChance = this.calculateSurvivalChance();
-        }
-    }
-
-    draw(ctx, game) {
-        if (this.hiding) {
-            ctx.globalAlpha = 0.3;
-        }
-
-        if (this.state === GooseState.EGG) {
-            // Draw egg with actual image (smaller, perfect ratio)
-            if (game && game.images.egg.complete) {
-                const width = 20;  // Smaller width
-                const height = 28; // Smaller height (same ratio)
-                ctx.save();
-                ctx.drawImage(game.images.egg, this.x - width/2, this.y - height/2, width, height);
-                ctx.restore();
-            } else {
-                // Fallback if image not loaded - draw simple egg
-                ctx.save();
-                ctx.fillStyle = '#f5f5dc'; // Cream color
-                ctx.beginPath();
-                ctx.ellipse(this.x, this.y, 10, 14, 0, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.strokeStyle = '#d3d3d3';
-                ctx.lineWidth = 2;
-                ctx.stroke();
-                ctx.restore();
-            }
-        } else if (this.state === GooseState.GOSLING) {
-            // Draw gosling with actual image (smaller)
-            if (game && game.images.gosling.complete) {
-                const size = 50; // Smaller gosling
-                ctx.save();
-                if (this.facingLeft) {
-                    ctx.scale(-1, 1);
-                    ctx.drawImage(game.images.gosling, -this.x - size/2, this.y - size/2, size, size);
-                } else {
-                    ctx.drawImage(game.images.gosling, this.x - size/2, this.y - size/2, size, size);
-                }
-                ctx.restore();
-            } else {
-                // Fallback if image not loaded
-                ctx.fillStyle = '#FFD700';
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, 20, 0, Math.PI * 2);
-                ctx.fill();
-            }
-        } else {
-            // Draw adult goose with actual image (1.2x bigger)
-            if (game && game.images.adult.complete) {
-                const size = 120; // 1.2x bigger
-                ctx.save();
-                if (this.facingLeft) {
-                    ctx.scale(-1, 1);
-                    ctx.drawImage(game.images.adult, -this.x - size/2, this.y - size/2, size, size);
-                } else {
-                    ctx.drawImage(game.images.adult, this.x - size/2, this.y - size/2, size, size);
-                }
-                ctx.restore();
-            } else {
-                // Fallback if image not loaded
-                ctx.fillStyle = 'white';
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, 40, 0, Math.PI * 2);
-                ctx.fill();
-            }
-        }
-
-        ctx.globalAlpha = 1.0;
-    }
-}
-
-// Predator class
-class Predator {
-    constructor(type, x, y) {
-        this.type = type;
-        this.x = x;
-        this.y = y;
-        this.vx = Math.random() * 5 - 2.5;
-        this.vy = Math.random() * 5 - 2.5;
-    }
-
-    move(width, height, geese) {
-        // Hunt nearest goose
-        const nearestGoose = this.findNearestGoose(geese);
-        if (nearestGoose) {
-            const distance = this.distance(nearestGoose);
-            if (distance < 150 && !nearestGoose.hiding) {
-                const dx = nearestGoose.x - this.x;
-                const dy = nearestGoose.y - this.y;
-                this.vx += dx / 20;
-                this.vy += dy / 20;
-            }
-        }
-
-        // Limit speed (slowed down)
-        const maxSpeed = 2.0;
-        const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
-        if (speed > maxSpeed) {
-            this.vx = (this.vx / speed) * maxSpeed;
-            this.vy = (this.vy / speed) * maxSpeed;
-        }
-
-        this.x += this.vx;
-        this.y += this.vy;
-
-        // Bounce off edges (with margin)
-        const margin = 50;
-        if (this.x < margin || this.x > width - margin) this.vx *= -1;
-        if (this.y < margin || this.y > height - margin) this.vy *= -1;
-
-        this.x = Math.max(margin, Math.min(width - margin, this.x));
-        this.y = Math.max(margin, Math.min(height - margin, this.y));
-    }
-
-    findNearestGoose(geese) {
-        let nearest = null;
-        let minDist = Infinity;
-        for (const goose of geese) {
-            if (goose.state !== GooseState.EGG && !goose.hiding) {
-                const dist = this.distance(goose);
-                if (dist < minDist) {
-                    minDist = dist;
-                    nearest = goose;
-                }
-            }
-        }
-        return nearest;
-    }
-
-    distance(goose) {
-        const dx = this.x - goose.x;
-        const dy = this.y - goose.y;
-        return Math.sqrt(dx * dx + dy * dy);
-    }
-
-    canAttack(goose) {
-        const inRange = this.distance(goose) < 30 && !goose.hiding;
-        if (!inRange) return false;
-        
-        // Monte Carlo: Stochastic catch probability
-        // Not every contact results in a catch
-        const catchChance = SIMULATION_PARAMS.PREDATOR_CATCH_PROBABILITY * (1 - goose.survivalChance);
-        return Math.random() < catchChance;
-    }
-
-    draw(ctx, game) {
-        if (this.type === PredatorType.FOX) {
-            // Draw fox with actual image (smaller)
-            if (game && game.images.fox.complete) {
-                const size = 50; // Smaller fox
-                ctx.drawImage(game.images.fox, this.x - size/2, this.y - size/2, size, size);
-            } else {
-                // Fallback
-                ctx.fillStyle = '#FF4500';
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, 25, 0, Math.PI * 2);
-                ctx.fill();
-            }
-        } else {
-            // Draw eagle with actual image (smaller)
-            if (game && game.images.eagle.complete) {
-                const size = 55; // Smaller eagle
-                ctx.drawImage(game.images.eagle, this.x - size/2, this.y - size/2, size, size);
-            } else {
-                // Fallback
-                ctx.fillStyle = '#8B4513';
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, 22, 0, Math.PI * 2);
-                ctx.fill();
-            }
-        }
-    }
-}
-
-// Pond class
-class Pond {
-    constructor(x, y, rx, ry) {
-        this.x = x;
-        this.y = y;
-        this.rx = rx;
-        this.ry = ry;
-    }
-
-    draw(ctx) {
-        ctx.fillStyle = '#4682B4';
-        ctx.beginPath();
-        ctx.ellipse(this.x, this.y, this.rx, this.ry, 0, 0, Math.PI * 2);
-        ctx.fill();
-    }
-}
-
-// Bush class
-class Bush {
-    constructor(x, y, radius = 40) {
-        this.x = x;
-        this.y = y;
-        this.radius = radius;
-    }
-
-    contains(x, y) {
-        const dx = x - this.x;
-        const dy = y - this.y;
-        return Math.sqrt(dx * dx + dy * dy) <= this.radius;
-    }
-
-    draw(ctx, game) {
-        if (game && game.images.bush.complete) {
-            // Draw bush with actual image
-            const size = this.radius * 2;
-            ctx.drawImage(game.images.bush, this.x - this.radius, this.y - this.radius, size, size);
-        } else {
-            // Fallback
-            ctx.fillStyle = '#228B22';
-            ctx.beginPath();
-            ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-            ctx.fill();
-            // Add some texture
-            ctx.fillStyle = '#32CD32';
-            ctx.beginPath();
-            ctx.arc(this.x - 10, this.y - 10, 15, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.beginPath();
-            ctx.arc(this.x + 10, this.y - 5, 12, 0, Math.PI * 2);
-            ctx.fill();
-        }
-    }
-}
-
-// Game class
-class Game {
+export class Game {
     constructor(canvas) {
         this.canvas = canvas;
-        this.ctx = canvas.getContext('2d');
-        this.width = CANVAS_WIDTH;
+        this.ctx    = canvas.getContext('2d');
+        this.width  = CANVAS_WIDTH;
         this.height = CANVAS_HEIGHT;
-        
-        canvas.width = this.width;
+        canvas.width  = this.width;
         canvas.height = this.height;
-        
-        // Load images
-        this.images = {
-            egg: new Image(),
-            gosling: new Image(),
-            adult: new Image(),
-            fox: new Image(),
-            eagle: new Image(),
-            bush: new Image()
-        };
-        
-        this.images.egg.src = 'static/images/egg.png';
-        this.images.gosling.src = 'static/images/gosling.png';
-        this.images.adult.src = 'static/images/goose_adult.jpg';
-        this.images.fox.src = 'static/images/fox.png';
-        this.images.eagle.src = 'static/images/eagle.png';
-        this.images.bush.src = 'static/images/bush.png';
+
         this.imagesLoaded = 0;
-        
-        // Wait for images to load
-        this.images.egg.onload = () => {
-            this.imagesLoaded++;
+        const li = (src) => {
+            const img = new Image();
+            img.src = src;
+            img.onload = () => this.imagesLoaded++;
+            return img;
         };
-        this.images.gosling.onload = () => {
-            this.imagesLoaded++;
+
+        this.images = {
+            layegg:     li('static/images/canadagoose_layegg.png'),
+            gosling:    li('static/images/gosling.png'),
+            adult:      li('static/images/canadagoose_adult.png'),
+            adult2:     li('static/images/canadagoose_adult2.png'),
+            migration:  li('static/images/canadagoose_migration.png'),
+            migration2: li('static/images/canadagoose_migration2.png'),
+            fox:        li('static/images/fox.png'),
+            fox2:       li('static/images/fox2.png'),
+            fox3:       li('static/images/fox3.png'),
+            eagle:      li('static/images/eagle.png'),
+            eagle2:     li('static/images/eagle2.png'),
+            eagle3:     li('static/images/eagle3.png'),
+            bush:       li('static/images/bush.png'),
+            bush2:      li('static/images/bush2.png'),
+            bush3:      li('static/images/bush3.png'),
+            cactus:     li('static/images/cactus.png'),
+            palm:       li('static/images/palm.png'),
+            snow:       li('static/images/snow.png'),
+            snow2:      li('static/images/snow2.png'),
+            egg:        li('static/images/egg.png'),
         };
-        this.images.adult.onload = () => {
-            this.imagesLoaded++;
-        };
-        this.images.fox.onload = () => {
-            this.imagesLoaded++;
-        };
-        this.images.eagle.onload = () => {
-            this.imagesLoaded++;
-        };
-        this.images.bush.onload = () => {
-            this.imagesLoaded++;
-        };
-        
-        this.geese = [];
+
+        this.geese     = [];
         this.predators = [];
-        this.ponds = [];
-        this.bushes = [];
-        
-        this.score = 0;
-        this.gameTime = 0;
-        this.gameOver = false;
-        this.paused = false;
-        this.startTime = Date.now();
-        
-        // Safe period before predators attack
-        this.safeMode = true;
-        this.safeModeEndTime = Date.now() + (SIMULATION_PARAMS.SAFE_PERIOD_SECONDS * 1000);
-        
-        // Event log
-        this.eventLog = [];
+        this.ponds     = [];
+        this.bushes    = [];
+
+        this.score          = 0;
+        this.gameTime       = 0;
+        this.gameOver       = false;
+        this.paused         = false;
+        this.manuallyPaused = false;
+        this.startTime      = Date.now();
+
+        this.safeMode        = true;
+        this.safeModeEndTime = Date.now() + SIMULATION_PARAMS.SAFE_PERIOD_SECONDS * 1000;
+
+        this.eventLog      = [];
         this.maxLogEntries = 5;
-        
-        // Geographic location
-        this.latitude = 15;  // Start at 15°N (temperate zone)
-        this.longitude = -75; // Start at 75°W (roughly eastern North America)
-        
-        // Migration and breeding tracking
-        this.migrationActive = false;
-        this.migrationDirection = null;
+
+        const startLoc = this.randomStartLocation();
+        this.latitude  = startLoc.lat;
+        this.longitude = startLoc.lng;
+
+        this.migrationActive           = false;
+        this.migrationDirection        = null;
+        this.migrationOverlayActive    = false;
+        this.migrationOverlayDirection = null;
         this.breedingCooldown = 0;
         this.totalBorn = 0;
         this.totalDied = 0;
-        
+
+        this.month = Math.floor(Math.random() * 12);
+        this.week  = Math.floor(Math.random() * 4) + 1;
+
+        this.weather          = 'sunny';
+        this.weatherWeeksLeft = 3 + Math.floor(Math.random() * 4);
+
+        this.stormShakeX    = 0;
+        this.stormShakeY    = 0;
+        this.lightningFlash  = 0;
+        this.lightningX      = 0;
+        this.lightningPoints = [];
+
+        this.fastMigration = false;
+
         this.init();
-        
-        // Mouse click handler
         canvas.addEventListener('click', (e) => this.handleClick(e));
     }
 
+    advanceWeek() {
+        this.week++;
+        if (this.week > 4) { this.week = 1; this.month = (this.month + 1) % 12; }
+        this.geese.forEach(g => { if (g.weeksLeft > 0) g.weeksLeft--; });
+
+        this.weatherWeeksLeft--;
+        if (this.weatherWeeksLeft <= 0) this.changeWeather();
+
+        if (this.weather === 'storm') {
+            this.geese.forEach(g => { g.energy = Math.max(5, g.energy - 15); });
+            this.logEvent('⛈️ Storm saps the flock\'s energy!', 'warning');
+        } else if (this.weather === 'rain') {
+            this.geese.forEach(g => { g.energy = Math.max(20, g.energy - 5); });
+        }
+    }
+
+    changeWeather() {
+        const r = Math.random();
+        this.weather = r < 0.55 ? 'sunny' : r < 0.80 ? 'rain' : 'storm';
+        this.weatherWeeksLeft = 2 + Math.floor(Math.random() * 5);
+        const icons = { sunny: '☀️', rain: '🌧️', storm: '⛈️' };
+        const names = { sunny: 'Sunny', rain: 'Rain', storm: 'Storm!' };
+        this.logEvent(`${icons[this.weather]} Weather changed: ${names[this.weather]}`,
+            this.weather === 'storm' ? 'important' : 'normal');
+    }
+
+    drawLightning() {
+        if (this.lightningPoints.length < 2) return;
+        const alpha = this.lightningFlash / 15;
+        this.ctx.save();
+        this.ctx.strokeStyle = `rgba(255, 255, 180, ${alpha})`;
+        this.ctx.lineWidth   = 2 + alpha * 3;
+        this.ctx.shadowColor = 'rgba(255, 255, 80, 0.9)';
+        this.ctx.shadowBlur  = 30;
+        this.ctx.beginPath();
+        this.ctx.moveTo(this.lightningPoints[0].x, this.lightningPoints[0].y);
+        for (let i = 1; i < this.lightningPoints.length; i++) {
+            this.ctx.lineTo(this.lightningPoints[i].x, this.lightningPoints[i].y);
+        }
+        this.ctx.stroke();
+        this.ctx.restore();
+    }
+
+    randomStartLocation() {
+        const diff = currentDifficulty;
+        const r = Math.random();
+        let lat;
+
+        const tempN  = () => 30 + Math.random() * 20;        // [30, 50]
+        const tempS  = () => -(35 + Math.random() * 10);     // [-45, -35]
+        const subtrN = () => 15 + Math.random() * 15;        // [15, 30]
+        const subtrS = () => -(15 + Math.random() * 15);     // [-30, -15]
+        const temperate   = () => Math.random() < 0.5 ? tempN()  : tempS();
+        const subtropical = () => Math.random() < 0.5 ? subtrN() : subtrS();
+
+        if (diff === 'easy') {
+            lat = temperate();
+        } else if (diff === 'normal') {
+            if      (r < 0.60) lat = temperate();
+            else if (r < 0.90) lat = subtropical();
+            else               lat = 50 + Math.random() * 10; // subarctic
+        } else {
+            if      (r < 0.30) lat = temperate();
+            else if (r < 0.50) lat = 50 + Math.random() * 10;         // subarctic
+            else if (r < 0.70) lat = subtropical();
+            else if (r < 0.90) lat = -15 + Math.random() * 30;       // tropical
+            else               lat = 60 + Math.random() * 30;         // arctic
+        }
+
+        return {
+            lat: parseFloat(lat.toFixed(1)),
+            lng: parseFloat((-180 + Math.random() * 360).toFixed(1)),
+        };
+    }
+
     init() {
-        // Add starting geese
         const goose1 = new Goose(GooseState.ADULT, 0, 300, 200, 'male');
         const goose2 = new Goose(GooseState.ADULT, 0, 320, 200, 'female');
         goose1.game = this;
         goose2.game = this;
-        this.geese.push(goose1);
-        this.geese.push(goose2);
+        this.geese.push(goose1, goose2);
 
-        // Add ponds
         this.ponds.push(new Pond(400, 400, 120, 80));
         this.ponds.push(new Pond(800, 500, 100, 100));
 
-        // Add bushes
         this.bushes.push(new Bush(200, 500));
         this.bushes.push(new Bush(600, 300));
         this.bushes.push(new Bush(900, 150));
 
-        // Add predators based on difficulty
-        const diff = DIFFICULTY_SETTINGS[currentDifficulty];
-        const predTypes = [PredatorType.FOX, PredatorType.EAGLE, PredatorType.FOX, PredatorType.EAGLE];
-        const predPositions = [[100, 100], [900, 100], [500, 50], [200, 500]];
+        const diff      = DIFFICULTY_SETTINGS[currentDifficulty];
+        const types     = [PredatorType.FOX, PredatorType.EAGLE, PredatorType.FOX, PredatorType.EAGLE];
+        const positions = [[100, 100], [900, 100], [500, 50], [200, 500]];
         for (let i = 0; i < diff.startPredators; i++) {
-            this.predators.push(new Predator(predTypes[i], predPositions[i][0], predPositions[i][1]));
+            this.predators.push(new Predator(types[i], positions[i][0], positions[i][1]));
         }
     }
 
@@ -617,35 +199,21 @@ class Game {
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
 
-        // Check if clicked on a goose
         for (const goose of this.geese) {
-            const dx = x - goose.x;
-            const dy = y - goose.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-            
-            if (distance < 50) {
-                // Find nearest bush
-                let nearestBush = null;
-                let minDist = Infinity;
+            const dx = x - goose.x, dy = y - goose.y;
+            if (Math.sqrt(dx * dx + dy * dy) < 50) {
+                let nearestBush = null, minDist = Infinity;
                 for (const bush of this.bushes) {
-                    const dist = Math.sqrt(
-                        (bush.x - goose.x) ** 2 + (bush.y - goose.y) ** 2
-                    );
-                    if (dist < minDist) {
-                        minDist = dist;
-                        nearestBush = bush;
-                    }
+                    const dist = Math.sqrt((bush.x - goose.x) ** 2 + (bush.y - goose.y) ** 2);
+                    if (dist < minDist) { minDist = dist; nearestBush = bush; }
                 }
-                
                 if (nearestBush) {
                     goose.hiding = true;
                     goose.x = nearestBush.x;
                     goose.y = nearestBush.y;
-                    const gooseName = goose.state === GooseState.GOSLING ? 'gosling' : 'goose';
-                    this.logEvent(`🌳 A ${gooseName} is hiding!`, 'normal');
-                    setTimeout(() => {
-                        goose.hiding = false;
-                    }, 3000);
+                    const name = goose.state === GooseState.GOSLING ? 'gosling' : 'goose';
+                    this.logEvent(`🌳 A ${name} is hiding!`, 'normal');
+                    setTimeout(() => { goose.hiding = false; }, 3000);
                 }
                 break;
             }
@@ -656,42 +224,46 @@ class Game {
         if (this.gameOver || this.paused) return;
 
         this.gameTime++;
-        
-        // Check if safe mode should end
+
         if (this.safeMode && Date.now() >= this.safeModeEndTime) {
             this.safeMode = false;
             this.logEvent('⚠️ Safe period over! Predators are now active!', 'warning');
         }
-        
-        // Decrease breeding cooldown
-        if (this.breedingCooldown > 0) {
-            this.breedingCooldown--;
+
+        if (this.breedingCooldown > 0) this.breedingCooldown--;
+
+        if (this.gameTime % 120 === 0) this.advanceWeek();
+
+        // Storm visual state (per frame)
+        if (this.weather === 'storm') {
+            this.stormShakeX = (Math.random() - 0.5) * 8;
+            this.stormShakeY = (Math.random() - 0.5) * 4;
+            if (Math.random() < 0.015) {
+                this.lightningFlash  = 15;
+                this.lightningX      = 80 + Math.random() * (this.width - 160);
+                this.lightningPoints = [];
+                let lx = this.lightningX;
+                for (let ly = 0; ly < this.height * 0.65; ) {
+                    this.lightningPoints.push({ x: clamp(lx, 20, this.width - 20), y: ly });
+                    lx += (Math.random() - 0.5) * 60;
+                    ly += 15 + Math.random() * 25;
+                }
+            }
+            if (this.lightningFlash > 0) this.lightningFlash--;
+        } else {
+            this.stormShakeX = 0; this.stormShakeY = 0; this.lightningFlash = 0;
         }
 
-        // Update geese (age faster - 1 week every 2 seconds instead of 8 seconds)
-        if (this.gameTime % 120 === 0) { // Every 2 seconds at 60 FPS
-            this.geese.forEach(goose => {
-                if (goose.weeksLeft > 0) goose.weeksLeft--;
-            });
-        }
-        
-        this.geese.forEach(goose => {
-            goose.move(this.width, this.height);
-        });
+        this.geese.forEach(g => g.move(this.width, this.height));
+        this.predators.forEach(p => p.move(this.width, this.height, this.geese));
 
-        // Update predators
-        this.predators.forEach(predator => {
-            predator.move(this.width, this.height, this.geese);
-        });
-
-        // Check attacks (only if NOT in safe mode!)
         if (!this.safeMode) {
             for (let i = this.geese.length - 1; i >= 0; i--) {
                 const goose = this.geese[i];
                 for (const predator of this.predators) {
                     if (predator.canAttack(goose) && goose.state !== GooseState.EGG) {
-                        const gooseName = goose.state === GooseState.GOSLING ? 'gosling' : 'goose';
-                        this.logEvent(`🦊 A ${predator.type} ate a ${gooseName}!`, 'important');
+                        const name = goose.state === GooseState.GOSLING ? 'gosling' : 'goose';
+                        this.logEvent(`🦊 A ${predator.type} ate a ${name}!`, 'important');
                         this.geese.splice(i, 1);
                         this.totalDied++;
                         break;
@@ -699,108 +271,76 @@ class Game {
                 }
             }
         }
-        
-        // Monte Carlo: Random events (storms, etc.)
-        if (Math.random() < SIMULATION_PARAMS.RANDOM_EVENT_CHANCE) {
-            this.geese.forEach(g => g.energy = Math.max(10, g.energy - 30));
-            this.logEvent('⛈️ Storm! All geese lost energy', 'warning');
-        }
 
-        // Breeding (with cooldown)
-        if (this.gameTime % 500 === 0) {
-            this.breed();
+        // Kill eggs whose mother died or stopped hatching
+        let orphanCount = 0;
+        for (let i = this.geese.length - 1; i >= 0; i--) {
+            const g = this.geese[i];
+            if (g.state === GooseState.EGG) {
+                const motherAlive = g.parent && this.geese.includes(g.parent) && g.parent.hatching;
+                if (!motherAlive) { this.geese.splice(i, 1); this.totalDied++; orphanCount++; }
+            }
         }
-        
-        // Dynamic predator spawning - more geese = more predators!
-        const spawnInterval = DIFFICULTY_SETTINGS[currentDifficulty].spawnInterval;
-        const spawnThreshold = DIFFICULTY_SETTINGS[currentDifficulty].spawnThreshold;
+        if (orphanCount > 0) this.logEvent(`🥚 ${orphanCount} egg${orphanCount > 1 ? 's' : ''} abandoned`, 'warning');
+
+        // Release hatching mothers whose nest is empty
+        this.geese.forEach(g => {
+            if (g.hatching && !this.geese.some(e => e.state === GooseState.EGG && e.parent === g)) {
+                g.hatching = false;
+            }
+        });
+
+        const { spawnInterval, spawnThreshold } = DIFFICULTY_SETTINGS[currentDifficulty];
         if (this.gameTime % spawnInterval === 0 && !this.safeMode) {
             const gooseCount = this.geese.filter(g => g.state === GooseState.ADULT).length;
-
-            // Spawn predator if population is high enough
-            if (gooseCount > spawnThreshold) {
-                const shouldSpawn = Math.random() < (gooseCount / 10); // 10% per adult over threshold
-                
-                if (shouldSpawn) {
-                    const type = Math.random() < 0.5 ? PredatorType.FOX : PredatorType.EAGLE;
-                    const edge = Math.floor(Math.random() * 4); // 0=top, 1=right, 2=bottom, 3=left
-                    let x, y;
-                    
-                    switch(edge) {
-                        case 0: x = Math.random() * this.width; y = 0; break;
-                        case 1: x = this.width; y = Math.random() * this.height; break;
-                        case 2: x = Math.random() * this.width; y = this.height; break;
-                        case 3: x = 0; y = Math.random() * this.height; break;
-                    }
-                    
-                    this.predators.push(new Predator(type, x, y));
-                    this.logEvent(`⚠️ New ${type} appeared! (${gooseCount} geese attracted predators)`, 'warning');
-                }
+            if (gooseCount > spawnThreshold && Math.random() < gooseCount / 10) {
+                const type = Math.random() < 0.5 ? PredatorType.FOX : PredatorType.EAGLE;
+                const edge = Math.floor(Math.random() * 4);
+                let x, y;
+                if      (edge === 0) { x = Math.random() * this.width;  y = 0; }
+                else if (edge === 1) { x = this.width;  y = Math.random() * this.height; }
+                else if (edge === 2) { x = Math.random() * this.width;  y = this.height; }
+                else                 { x = 0; y = Math.random() * this.height; }
+                this.predators.push(new Predator(type, x, y));
+                this.logEvent(`⚠️ New ${type} appeared! (${gooseCount} geese attracted predators)`, 'warning');
             }
         }
 
-        // Hatching eggs (with stochastic survival and logging)
-        const eggsToProcess = this.geese.filter(g => g.state === GooseState.EGG && g.weeksLeft <= 0);
-        let hatchedCount = 0;
-        let failedCount = 0;
-        
-        eggsToProcess.forEach(goose => {
-            if (Math.random() < goose.survivalChance) {
+        // Hatching
+        const stormMod  = this.weather === 'storm' ? 0.70 : 1.0;
+        const eggsReady = this.geese.filter(g => g.state === GooseState.EGG && g.weeksLeft <= 0);
+        let hatchedCount = 0, failedCount = 0;
+        eggsReady.forEach(goose => {
+            if (Math.random() < goose.survivalChance * stormMod) {
                 goose.state = GooseState.GOSLING;
-                goose.weeksLeft = 0; // Will be set by transition
-                // Set individual growth time
-                goose.weeksToMature = Math.round(clamp(
-                    randomNormal(8, 1.5),
-                    4, 12
-                ));
+                goose.weeksToMature = Math.round(clamp(randomNormal(12, 1.5), 8, 16));
                 goose.weeksLeft = goose.weeksToMature;
                 hatchedCount++;
             } else {
-                const index = this.geese.indexOf(goose);
-                if (index > -1) {
-                    this.geese.splice(index, 1);
-                    this.totalDied++;
-                    failedCount++;
-                }
+                const idx = this.geese.indexOf(goose);
+                if (idx > -1) { this.geese.splice(idx, 1); this.totalDied++; failedCount++; }
             }
         });
-        
-        if (hatchedCount > 0) {
-            this.logEvent(`🐣 ${hatchedCount} gosling${hatchedCount > 1 ? 's' : ''} hatched!`, 'positive');
-        }
-        if (failedCount > 0) {
-            this.logEvent(`💔 ${failedCount} egg${failedCount > 1 ? 's' : ''} failed to hatch`, 'warning');
-        }
+        if (hatchedCount > 0) this.logEvent(`🐣 ${hatchedCount} gosling${hatchedCount > 1 ? 's' : ''} hatched!`, 'positive');
+        if (failedCount  > 0) this.logEvent(`💔 ${failedCount} egg${failedCount > 1 ? 's' : ''} failed to hatch`, 'warning');
 
-        // Maturing goslings (with stochastic survival and logging)
-        const goslingsToProcess = this.geese.filter(g => g.state === GooseState.GOSLING && g.weeksLeft <= 0);
-        let maturedCount = 0;
-        let diedCount = 0;
-        
-        goslingsToProcess.forEach(goose => {
-            if (Math.random() < goose.survivalChance) {
+        // Maturing goslings
+        const goslingsReady = this.geese.filter(g => g.state === GooseState.GOSLING && g.weeksLeft <= 0);
+        let maturedCount = 0, diedCount = 0;
+        goslingsReady.forEach(goose => {
+            if (Math.random() < goose.survivalChance * stormMod) {
                 goose.state = GooseState.ADULT;
                 goose.parent = null;
                 this.score += 10;
                 maturedCount++;
             } else {
-                const index = this.geese.indexOf(goose);
-                if (index > -1) {
-                    this.geese.splice(index, 1);
-                    this.totalDied++;
-                    diedCount++;
-                }
+                const idx = this.geese.indexOf(goose);
+                if (idx > -1) { this.geese.splice(idx, 1); this.totalDied++; diedCount++; }
             }
         });
-        
-        if (maturedCount > 0) {
-            this.logEvent(`🦆 ${maturedCount} gosling${maturedCount > 1 ? 's' : ''} matured to adults!`, 'positive');
-        }
-        if (diedCount > 0) {
-            this.logEvent(`💀 ${diedCount} gosling${diedCount > 1 ? 's' : ''} didn't survive to adulthood`, 'warning');
-        }
+        if (maturedCount > 0) this.logEvent(`🦆 ${maturedCount} gosling${maturedCount > 1 ? 's' : ''} matured to adults!`, 'positive');
+        if (diedCount    > 0) this.logEvent(`💀 ${diedCount} gosling${diedCount > 1 ? 's' : ''} didn't survive to adulthood`, 'warning');
 
-        // Check game over
         if (this.geese.length === 0) {
             this.gameOver = true;
             this.logEvent('☠️ Game Over! All geese are gone', 'important');
@@ -811,32 +351,24 @@ class Game {
 
     breed() {
         if (this.breedingCooldown > 0) return;
-        
-        const males = this.geese.filter(g => g.state === GooseState.ADULT && g.gender === 'male' && g.energy > 50);
+
+        const males   = this.geese.filter(g => g.state === GooseState.ADULT && g.gender === 'male'   && g.energy > 50);
         const females = this.geese.filter(g => g.state === GooseState.ADULT && g.gender === 'female' && g.energy > 50);
 
         if (males.length > 0 && females.length > 0) {
-            // Individual breeding success using normal distribution
             const breedingSuccess = clamp(
                 randomNormal(SIMULATION_PARAMS.BREEDING_SUCCESS_MEAN, SIMULATION_PARAMS.BREEDING_SUCCESS_STDDEV),
                 0.2, 1.0
             );
-            
             if (Math.random() < breedingSuccess) {
                 const mother = females[Math.floor(Math.random() * females.length)];
-                
-                // Clutch size using normal distribution (realistic!)
                 const clutchSize = Math.round(clamp(
                     randomNormal(SIMULATION_PARAMS.CLUTCH_SIZE_MEAN, SIMULATION_PARAMS.CLUTCH_SIZE_STDDEV),
-                    SIMULATION_PARAMS.CLUTCH_SIZE_MIN,
-                    SIMULATION_PARAMS.CLUTCH_SIZE_MAX
+                    SIMULATION_PARAMS.CLUTCH_SIZE_MIN, SIMULATION_PARAMS.CLUTCH_SIZE_MAX
                 ));
-                
-                // Lay multiple eggs
                 for (let i = 0; i < clutchSize; i++) {
                     const egg = new Goose(
-                        GooseState.EGG,
-                        0, // weeksLeft will be set by constructor based on normal dist
+                        GooseState.EGG, 0,
                         mother.x + (Math.random() * 120 - 60),
                         mother.y + (Math.random() * 120 - 60),
                         Math.random() < 0.5 ? 'male' : 'female',
@@ -846,527 +378,350 @@ class Game {
                     this.geese.push(egg);
                     this.totalBorn++;
                 }
-                
-                // Log event
-                this.logEvent(`💕 Breeding successful! ${clutchSize} egg${clutchSize > 1 ? 's' : ''} laid`, 'positive');
-                
-                // Breeding costs energy
+                this.logEvent(`💕 Hatching successful! ${clutchSize} egg${clutchSize > 1 ? 's' : ''} laid`, 'positive');
                 mother.energy -= 15;
+                mother.hatching = true;
             } else {
-                this.logEvent(`💔 Breeding attempt failed`, 'warning');
+                this.logEvent(`💔 Hatching attempt failed`, 'warning');
             }
-            
             this.breedingCooldown = SIMULATION_PARAMS.BREEDING_COOLDOWN;
         }
     }
-    
+
     forceMating() {
-        // Button action: Force immediate breeding attempt
+        if (this.paused) return;
         this.breedingCooldown = 0;
         this.breed();
     }
-    
+
     logEvent(message, type = 'normal') {
-        // Add event to log
         this.eventLog.push({ message, type, time: Date.now() });
-        
-        // Keep only last N entries
-        if (this.eventLog.length > this.maxLogEntries) {
-            this.eventLog.shift();
-        }
-        
-        // Update display
+        if (this.eventLog.length > this.maxLogEntries) this.eventLog.shift();
         this.updateEventLog();
     }
-    
+
     updateEventLog() {
         const logElement = document.getElementById('eventLog');
-        if (!logElement) return;
-        
-        // Only show the MOST RECENT message
-        if (this.eventLog.length === 0) return;
-        
-        const event = this.eventLog[this.eventLog.length - 1]; // Get last message
+        if (!logElement || this.eventLog.length === 0) return;
+        const event = this.eventLog[this.eventLog.length - 1];
         let className = 'event-message';
         if (event.type === 'important') className += ' important';
-        if (event.type === 'positive') className += ' positive';
-        if (event.type === 'warning') className += ' warning';
-        
+        if (event.type === 'positive')  className += ' positive';
+        if (event.type === 'warning')   className += ' warning';
         logElement.innerHTML = `<div class="${className}">${event.message}</div>`;
     }
-    
+
     triggerMigration(direction) {
-        // Button action: Start migration in specified direction
-        this.migrationActive = true;
+        this.migrationActive    = true;
         this.migrationDirection = direction;
-        
-        // Calculate new latitude/longitude based on direction
-        let newLat = this.latitude;
+
+        let newLat  = this.latitude;
         let newLong = this.longitude;
-        
-        const latChange = SIMULATION_PARAMS.MIGRATION_DISTANCE / 111; // 1 degree lat ≈ 111 km
-        const longChange = SIMULATION_PARAMS.MIGRATION_DISTANCE / (111 * Math.cos(this.latitude * Math.PI / 180));
-        
-        switch(direction) {
+        const latDeg  = this.fastMigration ? SIMULATION_PARAMS.MIGRATION_DISTANCE_FAST   : SIMULATION_PARAMS.MIGRATION_DISTANCE_NORMAL;
+        const longDeg = this.fastMigration ? SIMULATION_PARAMS.MIGRATION_LONG_FAST       : SIMULATION_PARAMS.MIGRATION_LONG_NORMAL;
+        const latDrift  = (Math.random() - 0.5) * 3.0;
+        const longDrift = (Math.random() - 0.5) * 3.0;
+
+        switch (direction) {
             case 'north':
-                newLat = Math.min(SIMULATION_PARAMS.LATITUDE_MAX, this.latitude + latChange);
+                newLat  = clamp(this.latitude + latDeg, SIMULATION_PARAMS.LATITUDE_MIN, SIMULATION_PARAMS.LATITUDE_MAX);
+                newLong = this.longitude + longDrift;
                 break;
             case 'south':
-                newLat = Math.max(SIMULATION_PARAMS.LATITUDE_MIN, this.latitude - latChange);
+                newLat  = clamp(this.latitude - latDeg, SIMULATION_PARAMS.LATITUDE_MIN, SIMULATION_PARAMS.LATITUDE_MAX);
+                newLong = this.longitude + longDrift;
                 break;
             case 'east':
-                newLong = this.longitude + longChange;
-                if (newLong > 180) newLong -= 360;
+                newLong = this.longitude + longDeg;
+                newLat  = clamp(this.latitude + latDrift * 0.5, SIMULATION_PARAMS.LATITUDE_MIN, SIMULATION_PARAMS.LATITUDE_MAX);
                 break;
             case 'west':
-                newLong = this.longitude - longChange;
-                if (newLong < -180) newLong += 360;
+                newLong = this.longitude - longDeg;
+                newLat  = clamp(this.latitude + latDrift * 0.5, SIMULATION_PARAMS.LATITUDE_MIN, SIMULATION_PARAMS.LATITUDE_MAX);
                 break;
         }
-        
-        // Calculate target position on canvas (for visual migration)
+        if (newLong >  180) newLong -= 360;
+        if (newLong < -180) newLong += 360;
+
         let targetX, targetY;
-        switch(direction) {
-            case 'north':
-                targetX = this.width / 2;
-                targetY = 50;
-                break;
-            case 'south':
-                targetX = this.width / 2;
-                targetY = this.height - 50;
-                break;
-            case 'east':
-                targetX = this.width - 50;
-                targetY = this.height / 2;
-                break;
-            case 'west':
-                targetX = 50;
-                targetY = this.height / 2;
-                break;
+        switch (direction) {
+            case 'north': targetX = this.width / 2;  targetY = 50;               break;
+            case 'south': targetX = this.width / 2;  targetY = this.height - 50; break;
+            case 'east':  targetX = this.width - 50; targetY = this.height / 2;  break;
+            case 'west':  targetX = 50;              targetY = this.height / 2;  break;
         }
-        
-        const target = { x: targetX, y: targetY };
-        
-        // Set migration for all adult geese
+
+        // Energy cost of migration
+        const migrants = this.geese.filter(g => g.state === GooseState.ADULT && !g.hatching);
+        if (this.fastMigration) {
+            migrants.forEach(g => { g.energy = Math.max(5, g.energy - 80); });
+            this.logEvent('⚡ Sprint! Energy heavily depleted', 'warning');
+        } else {
+            migrants.forEach(g => { g.energy = Math.max(15, g.energy - 20); });
+        }
+
+        // Goslings and eggs can't migrate — they die
+        const leftBehind = this.geese.filter(g => g.state === GooseState.GOSLING || g.state === GooseState.EGG);
+        if (leftBehind.length > 0) {
+            const gCnt = leftBehind.filter(g => g.state === GooseState.GOSLING).length;
+            const eCnt = leftBehind.filter(g => g.state === GooseState.EGG).length;
+            leftBehind.forEach(g => {
+                const idx = this.geese.indexOf(g);
+                if (idx > -1) { this.geese.splice(idx, 1); this.totalDied++; }
+            });
+            this.geese.forEach(g => { if (g.hatching) g.hatching = false; });
+            const parts = [];
+            if (gCnt > 0) parts.push(`${gCnt} gosling${gCnt > 1 ? 's' : ''}`);
+            if (eCnt > 0) parts.push(`${eCnt} egg${eCnt > 1 ? 's' : ''}`);
+            this.logEvent(`💔 ${parts.join(' and ')} couldn't migrate and perished`, 'important');
+        }
+
         this.geese.forEach(goose => {
-            if (goose.state === GooseState.ADULT) {
+            if (goose.state === GooseState.ADULT && !goose.hatching) {
                 goose.migrating = true;
-                goose.migrationTarget = target;
+                goose.migrationTarget = { x: targetX, y: targetY };
             }
         });
-        
-        // After migration completes, update location
+
+        this.migrationOverlayActive    = true;
+        this.migrationOverlayDirection = direction;
+        this.paused = true;
+
         setTimeout(() => {
-            this.migrationActive = false;
-            this.latitude = newLat;
-            this.longitude = newLong;
-            
-            // Recalculate survival chances for all geese based on new latitude
-            this.geese.forEach(goose => {
-                goose.survivalChance = goose.calculateSurvivalChance();
-            });
-            
-            // Regenerate terrain (new location = new environment!)
+            this.migrationOverlayActive = false;
+            this.migrationActive        = false;
+            this.paused = false;
+            this.latitude               = parseFloat(newLat.toFixed(1));
+            this.longitude              = parseFloat(newLong.toFixed(1));
+            this.geese.forEach(g => { g.survivalChance = g.calculateSurvivalChance(); });
             this.regenerateTerrain();
-            
+            this.advanceWeek();
             this.logEvent(`🗺️ Migrated ${direction}! New terrain discovered.`, 'positive');
             this.updateUI();
-        }, 5000);
+        }, 2000);
     }
-    
+
     regenerateTerrain() {
-        // Clear old terrain
-        this.ponds = [];
+        this.ponds  = [];
         this.bushes = [];
-        
-        // Generate new random ponds (3-5 ponds)
+
+        const vegTypes = getVegTypes(Math.abs(this.latitude));
+
         const numPonds = 3 + Math.floor(Math.random() * 3);
         for (let i = 0; i < numPonds; i++) {
-            const x = 100 + Math.random() * (this.width - 300);
-            const y = 100 + Math.random() * (this.height - 200);
-            const w = 80 + Math.random() * 100;  // 80-180 width
-            const h = 60 + Math.random() * 80;   // 60-140 height
-            this.ponds.push(new Pond(x, y, w, h));
+            this.ponds.push(new Pond(
+                100 + Math.random() * (this.width  - 300),
+                100 + Math.random() * (this.height - 200),
+                80  + Math.random() * 100,
+                60  + Math.random() * 80
+            ));
         }
-        
-        // Generate new random bushes (4-7 bushes)
-        const numBushes = 4 + Math.floor(Math.random() * 4);
-        for (let i = 0; i < numBushes; i++) {
-            const x = 50 + Math.random() * (this.width - 100);
-            const y = 50 + Math.random() * (this.height - 100);
-            this.bushes.push(new Bush(x, y));
+
+        const vegRadii = { bush: 50, bush2: 50, bush3: 50, cactus: 45, palm: 55, snow: 70, snow2: 70 };
+        const numVeg = 4 + Math.floor(Math.random() * 4);
+        for (let i = 0; i < numVeg; i++) {
+            const type   = vegTypes[Math.floor(Math.random() * vegTypes.length)];
+            const radius = vegRadii[type] || 50;
+            this.bushes.push(new Bush(
+                50 + Math.random() * (this.width  - 100),
+                50 + Math.random() * (this.height - 100),
+                radius, type
+            ));
         }
     }
-    
+
     hideAllGeese() {
-        // Button action: Make all geese hide in nearest bushes
+        if (this.paused) return;
         let hiddenCount = 0;
         this.geese.forEach(goose => {
-            if (goose.state !== GooseState.EGG) {
-                let nearestBush = null;
-                let minDist = Infinity;
-                for (const bush of this.bushes) {
-                    const dist = Math.sqrt(
-                        (bush.x - goose.x) ** 2 + (bush.y - goose.y) ** 2
-                    );
-                    if (dist < minDist) {
-                        minDist = dist;
-                        nearestBush = bush;
-                    }
-                }
-                
-                if (nearestBush) {
-                    goose.hiding = true;
-                    goose.x = nearestBush.x;
-                    goose.y = nearestBush.y;
-                    hiddenCount++;
-                    setTimeout(() => {
-                        goose.hiding = false;
-                    }, 3000);
-                }
+            if (goose.state === GooseState.EGG) return;
+            let nearestBush = null, minDist = Infinity;
+            for (const bush of this.bushes) {
+                const dist = Math.sqrt((bush.x - goose.x) ** 2 + (bush.y - goose.y) ** 2);
+                if (dist < minDist) { minDist = dist; nearestBush = bush; }
+            }
+            if (nearestBush) {
+                goose.hiding = true;
+                goose.x = nearestBush.x;
+                goose.y = nearestBush.y;
+                hiddenCount++;
+                setTimeout(() => { goose.hiding = false; }, 3000);
             }
         });
-        
         if (hiddenCount > 0) {
             this.logEvent(`🌳 ${hiddenCount} goose${hiddenCount > 1 ? 's' : ''} hiding in bushes!`, 'normal');
         }
     }
-    
+
     addPredator() {
-        // Button action: Add a random predator
         const type = Math.random() < 0.5 ? PredatorType.FOX : PredatorType.EAGLE;
-        const x = Math.random() * this.width;
-        const y = Math.random() * this.height;
-        this.predators.push(new Predator(type, x, y));
+        this.predators.push(new Predator(type, Math.random() * this.width, Math.random() * this.height));
     }
 
     draw() {
-        // Clear canvas
-        this.ctx.clearRect(0, 0, this.width, this.height);
+        this.ctx.clearRect(-20, -20, this.width + 40, this.height + 40);
 
-        // Draw ponds
-        this.ponds.forEach(pond => pond.draw(this.ctx));
+        // World drawn with storm shake applied
+        this.ctx.save();
+        this.ctx.translate(this.stormShakeX, this.stormShakeY);
 
-        // Draw bushes
-        this.bushes.forEach(bush => bush.draw(this.ctx, this));
+        this.ponds.forEach(p => p.draw(this.ctx));
+        this.bushes.forEach(b => b.draw(this.ctx, this));
+        this.geese.forEach(g => g.draw(this.ctx, this));
+        this.predators.forEach(p => p.draw(this.ctx, this));
 
-        // Draw geese
-        this.geese.forEach(goose => goose.draw(this.ctx, this));
+        // Weather overlays (inside shake so they shake too)
+        if (!this.migrationOverlayActive && !this.manuallyPaused && !this.gameOver) {
+            if (this.weather === 'storm') {
+                this.ctx.fillStyle = 'rgba(10, 15, 45, 0.42)';
+                this.ctx.fillRect(-20, -20, this.width + 40, this.height + 40);
+                if (this.lightningFlash > 0) this.drawLightning();
+            } else if (this.weather === 'rain') {
+                this.ctx.fillStyle = 'rgba(40, 70, 120, 0.18)';
+                this.ctx.fillRect(0, 0, this.width, this.height);
+            }
+        }
 
-        // Draw predators
-        this.predators.forEach(predator => predator.draw(this.ctx, this));
+        this.ctx.restore();
 
-        // Draw game over
+        // Migration overlay (2-second screen between terrain changes)
+        if (this.migrationOverlayActive) {
+            const adultCount = this.geese.filter(g => g.state === GooseState.ADULT).length;
+            const migImg = adultCount >= 2 ? this.images.migration2 : this.images.migration;
+
+            this.ctx.fillStyle = 'rgba(100, 180, 230, 0.88)';
+            this.ctx.fillRect(0, 0, this.width, this.height);
+
+            if (migImg && migImg.complete && migImg.naturalWidth > 0) {
+                const imgW = Math.min(420, this.width * 0.5);
+                const imgH = imgW * 0.65;
+                this.ctx.save();
+                this.ctx.translate(this.width / 2, this.height / 2 - 20);
+                if (this.migrationOverlayDirection === 'east') this.ctx.scale(-1, 1);
+                this.ctx.drawImage(migImg, -imgW / 2, -imgH / 2, imgW, imgH);
+                this.ctx.restore();
+            }
+
+            const arrows = { north: '⬆️', south: '⬇️', east: '➡️', west: '⬅️' };
+            this.ctx.fillStyle = '#0a1628';
+            this.ctx.font      = `bold ${Math.max(20, Math.floor(this.width / 28))}px Arial`;
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText(
+                `Migrating ${this.migrationOverlayDirection}! ${arrows[this.migrationOverlayDirection]}`,
+                this.width / 2, this.height - 50
+            );
+        }
+
         if (this.gameOver) {
             this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
             this.ctx.fillRect(0, 0, this.width, this.height);
             this.ctx.fillStyle = 'white';
-            this.ctx.font = 'bold 60px Arial';
+            this.ctx.font      = 'bold 60px Arial';
             this.ctx.textAlign = 'center';
             this.ctx.fillText('Game Over!', this.width / 2, this.height / 2);
             this.ctx.font = 'bold 30px Arial';
             this.ctx.fillText(`Final Score: ${this.score}`, this.width / 2, this.height / 2 + 50);
         }
+
+        if (this.manuallyPaused && !this.migrationOverlayActive && !this.gameOver) {
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+            this.ctx.fillRect(0, 0, this.width, this.height);
+            this.ctx.fillStyle = 'white';
+            this.ctx.font      = `bold ${Math.max(48, Math.floor(this.width / 14))}px Arial`;
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText('⏸ PAUSED', this.width / 2, this.height / 2);
+        }
     }
 
     updateUI() {
-        document.getElementById('score').textContent = `Score: ${this.score}`;
+        document.getElementById('score').textContent       = `Score: ${this.score}`;
         document.getElementById('geese-count').textContent = `Geese: ${this.geese.length}`;
         const elapsed = Math.floor((Date.now() - this.startTime) / 1000);
         document.getElementById('time').textContent = `Time: ${elapsed}s`;
-        
-        // Update location display
-        const latDir = this.latitude >= 0 ? 'N' : 'S';
+
+        const latDir  = this.latitude  >= 0 ? 'N' : 'S';
         const longDir = this.longitude >= 0 ? 'E' : 'W';
-        document.getElementById('locationDisplay').textContent = 
+        document.getElementById('locationDisplay').textContent =
             `${Math.abs(this.latitude).toFixed(1)}°${latDir}, ${Math.abs(this.longitude).toFixed(1)}°${longDir}`;
-        
-        // Update climate zone
+
         const climate = getClimateZone(this.latitude);
         const climateDisplay = document.getElementById('climateZone');
-        climateDisplay.textContent = climate.name;
-        climateDisplay.style.color = climate.color;
+        climateDisplay.textContent      = climate.name;
+        climateDisplay.style.color      = climate.color;
         climateDisplay.style.fontWeight = 'bold';
-        
-        const breedingCooldown = document.getElementById('breedingCooldown');
-        if (this.breedingCooldown > 0) {
-            breedingCooldown.textContent = `${Math.ceil(this.breedingCooldown / 60)}s`;
-            breedingCooldown.style.color = '#ee0979';
-        } else {
-            breedingCooldown.textContent = 'Ready';
-            breedingCooldown.style.color = '#38ef7d';
+
+        // Weather
+        const weatherEl = document.getElementById('weatherDisplay');
+        if (weatherEl) {
+            const wIcons = { sunny: '☀️ Sunny', rain: '🌧️ Rain', storm: '⛈️ Storm' };
+            const wColors = { sunny: '#f6d855', rain: '#7babc7', storm: '#ee0979' };
+            weatherEl.textContent = wIcons[this.weather] || '☀️ Sunny';
+            weatherEl.style.color = wColors[this.weather] || '';
+            weatherEl.style.fontWeight = this.weather === 'storm' ? 'bold' : 'normal';
         }
-        
-        const survivalRate = document.getElementById('survivalRate');
-        if (this.totalBorn > 0) {
-            const rate = ((this.totalBorn - this.totalDied) / this.totalBorn * 100).toFixed(1);
-            survivalRate.textContent = `${rate}%`;
-            survivalRate.style.color = rate > 70 ? '#38ef7d' : rate > 40 ? '#ff9800' : '#ee0979';
-        } else {
-            survivalRate.textContent = '100%';
-            survivalRate.style.color = '#38ef7d';
+
+        // Date
+        const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        const dateEl = document.getElementById('dateDisplay');
+        if (dateEl) dateEl.innerHTML = `<strong>${MONTHS[this.month]} W${this.week}</strong>`;
+
+        // Avg Health (energy)
+        const adults   = this.geese.filter(g => g.state === GooseState.ADULT);
+        const avgEnergy = adults.length > 0
+            ? Math.round(adults.reduce((sum, g) => sum + g.energy, 0) / adults.length)
+            : 100;
+        const healthEl = document.getElementById('avgHealth');
+        if (healthEl) {
+            healthEl.textContent = `${avgEnergy}%`;
+            healthEl.style.color = avgEnergy > 70 ? '#38ef7d' : avgEnergy > 40 ? '#ff9800' : '#ee0979';
         }
+
+        // Population breakdown
+        const numAdults   = this.geese.filter(g => g.state === GooseState.ADULT).length;
+        const numGoslings = this.geese.filter(g => g.state === GooseState.GOSLING).length;
+        const numEggs     = this.geese.filter(g => g.state === GooseState.EGG).length;
+        const popEl = document.getElementById('populationBreakdown');
+        if (popEl) popEl.textContent = `${numAdults}🪿 ${numGoslings}🐥 ${numEggs}🥚`;
     }
 
     reset() {
-        this.geese = [];
+        this.geese     = [];
         this.predators = [];
-        this.ponds = [];
-        this.bushes = [];
-        this.score = 0;
-        this.gameTime = 0;
-        this.gameOver = false;
-        this.paused = false;
-        this.startTime = Date.now();
-        this.latitude = 45;
-        this.longitude = -75;
-        this.migrationActive = false;
-        this.migrationDirection = null;
+        this.ponds     = [];
+        this.bushes    = [];
+        this.score     = 0;
+        this.gameTime  = 0;
+        this.gameOver       = false;
+        this.manuallyPaused = false;
+        this.startTime      = Date.now();
+        const resetLoc = this.randomStartLocation();
+        this.latitude  = resetLoc.lat;
+        this.longitude = resetLoc.lng;
+        this.migrationActive           = false;
+        this.migrationDirection        = null;
+        this.migrationOverlayActive    = false;
+        this.migrationOverlayDirection = null;
         this.breedingCooldown = 0;
-        this.totalBorn = 2; // Starting geese
+        this.totalBorn = 2;
         this.totalDied = 0;
-        
-        // Reset safe mode
-        this.safeMode = true;
-        this.safeModeEndTime = Date.now() + (SIMULATION_PARAMS.SAFE_PERIOD_SECONDS * 1000);
-        
-        // Clear event log
+        this.safeMode        = true;
+        this.safeModeEndTime = Date.now() + SIMULATION_PARAMS.SAFE_PERIOD_SECONDS * 1000;
+        this.month = Math.floor(Math.random() * 12);
+        this.week  = Math.floor(Math.random() * 4) + 1;
+        this.weather          = 'sunny';
+        this.weatherWeeksLeft = 3 + Math.floor(Math.random() * 4);
+        this.stormShakeX = 0; this.stormShakeY = 0;
+        this.lightningFlash = 0; this.lightningPoints = [];
+        this.fastMigration = false;
         this.eventLog = [];
         this.logEvent('🎮 Game started! Safe period: 10 seconds', 'positive');
-        
         this.init();
         this.updateUI();
     }
 
     togglePause() {
-        this.paused = !this.paused;
+        this.paused         = !this.paused;
+        this.manuallyPaused = this.paused;
         return this.paused;
     }
 }
-
-// Initialize game when page loads
-let game;
-
-window.addEventListener('load', () => {
-    // Set responsive canvas size
-    const size = getResponsiveCanvasSize();
-    CANVAS_WIDTH = size.width;
-    CANVAS_HEIGHT = size.height;
-
-    // Shrink container to match canvas width so header/panel line up
-    const container = document.querySelector('.container');
-    container.style.maxWidth = (CANVAS_WIDTH + 60) + 'px';
-
-    const canvas = document.getElementById('gameCanvas');
-    game = new Game(canvas);
-    window.game = game;
-
-    // Game loop
-    function gameLoop() {
-        game.update();
-        game.draw();
-        requestAnimationFrame(gameLoop);
-    }
-    gameLoop();
-
-    // Button handlers (reset is wired in the modal flow below)
-    document.getElementById('pauseBtn').addEventListener('click', () => {
-        const paused = game.togglePause();
-        document.getElementById('pauseBtn').textContent = paused ? 'Resume' : 'Pause';
-    });
-    
-    document.getElementById('fullscreenBtn').addEventListener('click', () => {
-        const container = document.querySelector('.container');
-        const btn = document.getElementById('fullscreenBtn');
-        
-        if (!document.fullscreenElement) {
-            // Enter fullscreen
-            container.classList.add('fullscreen');
-            if (container.requestFullscreen) {
-                container.requestFullscreen();
-            } else if (container.webkitRequestFullscreen) {
-                container.webkitRequestFullscreen();
-            } else if (container.msRequestFullscreen) {
-                container.msRequestFullscreen();
-            }
-            btn.textContent = '⛶ Exit Fullscreen';
-        } else {
-            // Exit fullscreen
-            container.classList.remove('fullscreen');
-            if (document.exitFullscreen) {
-                document.exitFullscreen();
-            } else if (document.webkitExitFullscreen) {
-                document.webkitExitFullscreen();
-            } else if (document.msExitFullscreen) {
-                document.msExitFullscreen();
-            }
-            btn.textContent = '⛶ Fullscreen';
-        }
-    });
-    
-    // Update button text when fullscreen changes via ESC key
-    document.addEventListener('fullscreenchange', () => {
-        const container = document.querySelector('.container');
-        const btn = document.getElementById('fullscreenBtn');
-        if (!document.fullscreenElement) {
-            container.classList.remove('fullscreen');
-            btn.textContent = '⛶ Fullscreen';
-        }
-    });
-    
-    document.getElementById('mateBtn').addEventListener('click', () => {
-        game.forceMating();
-    });
-    
-    // Directional migration buttons
-    const directionButtons = ['migrateNorth', 'migrateSouth', 'migrateEast', 'migrateWest'];
-    directionButtons.forEach(btnId => {
-        const btn = document.getElementById(btnId);
-        btn.addEventListener('click', () => {
-            const direction = btn.dataset.direction;
-            game.triggerMigration(direction);
-            
-            // Visual feedback: highlight active button
-            directionButtons.forEach(id => {
-                document.getElementById(id).classList.remove('active');
-            });
-            btn.classList.add('active');
-            
-            // Remove highlight after migration
-            setTimeout(() => {
-                btn.classList.remove('active');
-            }, 5000);
-        });
-    });
-    
-    document.getElementById('hideAllBtn').addEventListener('click', () => {
-        game.hideAllGeese();
-    });
-    
-    // Difficulty header buttons just update the active highlight (game change happens via popup)
-    ['diffEasy', 'diffNormal', 'diffHard'].forEach(id => {
-        document.getElementById(id).addEventListener('click', () => {
-            const level = document.getElementById(id).dataset.diff;
-            applyDifficulty(level);
-            ['diffEasy', 'diffNormal', 'diffHard'].forEach(bid => {
-                document.getElementById(bid).classList.remove('btn-diff-active');
-            });
-            document.getElementById(id).classList.add('btn-diff-active');
-        });
-    });
-    
-    // Arrow key controls - move all geese (except eggs!)
-    window.addEventListener('keydown', (e) => {
-        const moveSpeed = 15; // Pixels to move geese
-        
-        switch(e.key) {
-            case 'ArrowUp':
-                game.geese.forEach(goose => {
-                    if (goose.state !== GooseState.EGG) { // Eggs don't move
-                        goose.y -= moveSpeed;
-                        goose.y = Math.max(50, goose.y); // Keep in bounds
-                    }
-                });
-                e.preventDefault(); // Prevent page scrolling
-                break;
-            case 'ArrowDown':
-                game.geese.forEach(goose => {
-                    if (goose.state !== GooseState.EGG) { // Eggs don't move
-                        goose.y += moveSpeed;
-                        goose.y = Math.min(game.height - 50, goose.y); // Keep in bounds
-                    }
-                });
-                e.preventDefault();
-                break;
-            case 'ArrowLeft':
-                game.geese.forEach(goose => {
-                    if (goose.state !== GooseState.EGG) { // Eggs don't move
-                        goose.x -= moveSpeed;
-                        goose.x = Math.max(50, goose.x); // Keep in bounds
-                    }
-                });
-                e.preventDefault();
-                break;
-            case 'ArrowRight':
-                game.geese.forEach(goose => {
-                    if (goose.state !== GooseState.EGG) { // Eggs don't move
-                        goose.x += moveSpeed;
-                        goose.x = Math.min(game.width - 50, goose.x); // Keep in bounds
-                    }
-                });
-                e.preventDefault();
-                break;
-        }
-    });
-
-    // --- Instructions → Difficulty → Countdown flow ---
-    game.paused = true;
-
-    function startCountdown(afterReset) {
-        if (afterReset) game.reset();
-        game.paused = true;
-
-        const wrapper = document.querySelector('.game-wrapper');
-        const overlay = document.createElement('div');
-        overlay.className = 'countdown-overlay';
-        wrapper.appendChild(overlay);
-
-        const counts = ['3', '2', '1', 'GO!'];
-        let i = 0;
-
-        function showNext() {
-            overlay.innerHTML = '';
-            if (i >= counts.length) {
-                overlay.remove();
-                game.paused = false;
-                return;
-            }
-            const el = document.createElement('div');
-            el.className = 'countdown-number';
-            el.textContent = counts[i];
-            overlay.appendChild(el);
-            i++;
-            setTimeout(showNext, 900);
-        }
-        showNext();
-    }
-
-    function showDifficultyModal(afterReset) {
-        const modal = document.getElementById('difficultyModal');
-        modal.classList.remove('hidden');
-
-        // Replace listeners each time to avoid duplicates
-        const newModal = modal.cloneNode(true);
-        modal.parentNode.replaceChild(newModal, modal);
-
-        newModal.querySelectorAll('.diff-choice').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const level = btn.dataset.diff;
-                applyDifficulty(level);
-                // Sync header difficulty buttons
-                ['diffEasy', 'diffNormal', 'diffHard'].forEach(id => {
-                    document.getElementById(id).classList.remove('btn-diff-active');
-                });
-                const map = { easy: 'diffEasy', normal: 'diffNormal', hard: 'diffHard' };
-                document.getElementById(map[level]).classList.add('btn-diff-active');
-
-                newModal.classList.add('hidden');
-                startCountdown(afterReset);
-            });
-        });
-    }
-
-    function closeInstructions() {
-        document.getElementById('instructionsModal').classList.add('hidden');
-        showDifficultyModal(false);
-    }
-
-    document.getElementById('closeModal').addEventListener('click', closeInstructions);
-    document.getElementById('startGameBtn').addEventListener('click', closeInstructions);
-
-    // Reset now shows difficulty popup instead of immediately resetting
-    document.getElementById('resetBtn').removeEventListener('click', () => game.reset());
-    document.getElementById('resetBtn').addEventListener('click', () => {
-        showDifficultyModal(true);
-    });
-});

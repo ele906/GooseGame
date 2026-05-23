@@ -2,7 +2,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🪿 Goose Migration Game - AI Powered</title>
+    <title>🪿 Goose Migration Game</title>
     <link rel="stylesheet" href="static/css/style.css">
     
 </head>
@@ -33,12 +33,20 @@
                 <div id="climateZone">Temperate</div>
             </div>
             <div class="info-box">
-                <h4>⏳ Hatching Cooldown</h4>
-                <div id="breedingCooldown">Ready</div>
+                <h4>🌤️ Weather</h4>
+                <div id="weatherDisplay">☀️ Sunny</div>
+            </div>
+            <div class="info-box info-box-date">
+                <h4>📅 Date</h4>
+                <div id="dateDisplay"><strong>Jan Week 1</strong></div>
             </div>
             <div class="info-box">
-                <h4>💚 Survival Rate</h4>
-                <div id="survivalRate">100%</div>
+                <h4>💚 Avg Health</h4>
+                <div id="avgHealth">100%</div>
+            </div>
+            <div class="info-box">
+                <h4>🪿 Population</h4>
+                <div id="populationBreakdown">2🪿 0🐥 0🥚</div>
             </div>
         </div>
 
@@ -63,6 +71,7 @@
             <button id="migrateSouth" class="btn btn-direction" data-direction="south">⬇️ South</button>
             <button id="migrateEast" class="btn btn-direction" data-direction="east">➡️ East</button>
             <button id="migrateWest" class="btn btn-direction" data-direction="west">⬅️ West</button>
+            <button id="fastMigrateToggle" class="btn btn-action">Short Flight</button>
         </div>
 
     </div>
@@ -97,22 +106,22 @@
             <button class="modal-close" id="closeModal" aria-label="Close">&#x2715;</button>
             <h3> How to Play</h3>
             <ul>
-                <li>🥚 Eggs hatch into goslings (85% survival rate - affected by latitude!)</li>
-                <li>🐥 Goslings grow into adult geese (70% base survival - climate matters!)</li>
-                <li>🦊 Avoid foxes and eagles - they hunt using stochastic pathfinding</li>
-                <li>💧 Ponds are safe zones for geese</li>
-                <li>🌳 Click individual geese or use "Hide" button to hide from predators</li>
-                <li>💕 Use "Hatch" button to breed (80% success rate, requires energy)</li>
-                <li>🧭 <strong>Migrate North/South/East/West</strong> - changes latitude/longitude!</li>
-                <li>🌡️ <strong>Climate zones affect survival</strong>:
+                <li>🌡️ <strong>Climate zones are <strong> crucial </strong> for survival</strong>. Harsher climates have lower survival rates:
                     <ul>
-                        <li>❄️ Temperate (30-50°N): <strong>Best survival (100%)</strong></li>
+                        <li>❄️ Temperate (30-50°N): <strong>Best survival rates (100%)</strong></li>
                         <li>🌨️ Subarctic/Subtropical: <strong>Good (80-85%)</strong></li>
                         <li>🧊 Arctic / 🌴 Tropical: <strong>Harsh (60-70%)</strong></li>
                         <li>🧊 Antarctic: <strong>Extreme (50%)</strong></li>
                     </ul>
                 </li>
-                <li>⚡ Energy affects survival - watch it during migration!</li>
+                <li>🥚 Eggs hatch into goslings </li>
+                <li>🐥 Goslings grow into adult geese</li>
+                <li>🦊 Avoid foxes and eagles - predators hunt using stochastic pathfinding</li>
+                <li>💧 Ponds are safe zones for geese</li>
+                <li>🌳 Click individual geese or use "Hide" button to hide from predators</li>
+                <li>⚡ Energy affects survival. </li>
+                <li>💕 Use "Hatch" button to lay eggs. Hatching geese can't move. </li>
+                <li>🧭 <strong>Migrate North/South/East/West</strong> to move to a better habitat. Long flights deplete a lot of energy. </li>
                 <li>⛈️ Random storms can hit at any latitude</li>
             </ul>
             <div class="modal-sim-box">
@@ -132,6 +141,6 @@
     </div>
 
     <!-- Game Scripts -->
-    <script src="static/js/game.js"></script>
+    <script type="module" src="static/js/main.js"></script>
 </body>
 </html>
