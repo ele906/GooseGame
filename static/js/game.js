@@ -125,6 +125,7 @@ export class Game {
         this.ambientAudio   = null;
         this.bgmAudio       = null;
         this.ambientStarted = false;
+        this.lastNotifTime  = {};
 
         this.init();
         canvas.addEventListener('click', (e) => this.handleClick(e));
@@ -140,6 +141,9 @@ export class Game {
     }
 
     playNotification(src) {
+        const now = Date.now();
+        if (this.lastNotifTime[src] && now - this.lastNotifTime[src] < 3000) return;
+        this.lastNotifTime[src] = now;
         try {
             const a = new Audio(src);
             a.volume = 0.6;
