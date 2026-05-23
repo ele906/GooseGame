@@ -51,7 +51,12 @@
             <button id="fullscreenBtn" class="btn btn-special">⛶ Fullscreen</button>
             <button id="mateBtn" class="btn btn-action">💕 Mate</button>
             <button id="hideAllBtn" class="btn btn-action">🌳 Hide All Geese</button>
-            <button id="addPredatorBtn" class="btn btn-danger">🦊 Add Predator</button>
+            <div class="difficulty-toggle">
+                <span class="difficulty-label">🎯 Difficulty:</span>
+                <button id="diffEasy" class="btn btn-diff btn-diff-easy" data-diff="easy">🌿 Easy</button>
+                <button id="diffNormal" class="btn btn-diff btn-diff-normal btn-diff-active" data-diff="normal">⚔️ Normal</button>
+                <button id="diffHard" class="btn btn-diff btn-diff-hard" data-diff="hard">🔥 Hard</button>
+            </div>
         </div>
         
         <div class="migration-controls-wrapper">

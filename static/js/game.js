@@ -6,7 +6,7 @@ const FPS = 60;
 // Function to get responsive canvas size
 const getResponsiveCanvasSize = () => {
     const maxWidth = Math.min(window.innerWidth * 0.9, 1000);
-    const maxHeight = Math.min(window.innerHeight * 0.5, 600);
+    const maxHeight = Math.min(window.innerHeight * 0.65, 750);
     return { width: maxWidth, height: maxHeight };
 };
 
@@ -52,6 +52,19 @@ const SIMULATION_PARAMS = {
     
     MIGRATION_DISTANCE: 150
 };
+
+let currentDifficulty = 'normal';
+
+const DIFFICULTY_SETTINGS = {
+    easy:   { startPredators: 0, catchProb: 0.01, spawnThreshold: 8,  spawnInterval: 2400 },
+    normal: { startPredators: 2, catchProb: 0.02, spawnThreshold: 3,  spawnInterval: 1800 },
+    hard:   { startPredators: 4, catchProb: 0.04, spawnThreshold: 2,  spawnInterval: 1200 }
+};
+
+function applyDifficulty(level) {
+    currentDifficulty = level;
+    SIMULATION_PARAMS.PREDATOR_CATCH_PROBABILITY = DIFFICULTY_SETTINGS[level].catchProb;
+}
 
 // Helper: Generate normally distributed random number (Box-Muller transform)
 function randomNormal(mean, stddev) {
@@ -590,9 +603,13 @@ class Game {
         this.bushes.push(new Bush(600, 300));
         this.bushes.push(new Bush(900, 150));
 
-        // Add predators
-        this.predators.push(new Predator(PredatorType.FOX, 100, 100));
-        this.predators.push(new Predator(PredatorType.EAGLE, 900, 100));
+        // Add predators based on difficulty
+        const diff = DIFFICULTY_SETTINGS[currentDifficulty];
+        const predTypes = [PredatorType.FOX, PredatorType.EAGLE, PredatorType.FOX, PredatorType.EAGLE];
+        const predPositions = [[100, 100], [900, 100], [500, 50], [200, 500]];
+        for (let i = 0; i < diff.startPredators; i++) {
+            this.predators.push(new Predator(predTypes[i], predPositions[i][0], predPositions[i][1]));
+        }
     }
 
     handleClick(e) {
@@ -695,11 +712,13 @@ class Game {
         }
         
         // Dynamic predator spawning - more geese = more predators!
-        if (this.gameTime % 1800 === 0 && !this.safeMode) { // Every 30 seconds
+        const spawnInterval = DIFFICULTY_SETTINGS[currentDifficulty].spawnInterval;
+        const spawnThreshold = DIFFICULTY_SETTINGS[currentDifficulty].spawnThreshold;
+        if (this.gameTime % spawnInterval === 0 && !this.safeMode) {
             const gooseCount = this.geese.filter(g => g.state === GooseState.ADULT).length;
-            
+
             // Spawn predator if population is high enough
-            if (gooseCount > 3) {
+            if (gooseCount > spawnThreshold) {
                 const shouldSpawn = Math.random() < (gooseCount / 10); // 10% per adult over threshold
                 
                 if (shouldSpawn) {
@@ -1224,8 +1243,19 @@ window.addEventListener('load', () => {
         game.hideAllGeese();
     });
     
-    document.getElementById('addPredatorBtn').addEventListener('click', () => {
-        game.addPredator();
+    // Difficulty toggle buttons
+    ['diffEasy', 'diffNormal', 'diffHard'].forEach(id => {
+        document.getElementById(id).addEventListener('click', () => {
+            const level = document.getElementById(id).dataset.diff;
+            applyDifficulty(level);
+            // Update active state
+            ['diffEasy', 'diffNormal', 'diffHard'].forEach(bid => {
+                document.getElementById(bid).classList.remove('btn-diff-active');
+            });
+            document.getElementById(id).classList.add('btn-diff-active');
+            // Reset game with new difficulty
+            game.reset();
+        });
     });
     
     // Arrow key controls - move all geese (except eggs!)
