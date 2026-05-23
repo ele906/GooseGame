@@ -139,6 +139,14 @@ export class Game {
         } catch(e) {}
     }
 
+    playNotification(src) {
+        try {
+            const a = new Audio(src);
+            a.volume = 0.6;
+            a.play().catch(() => {});
+        } catch(e) {}
+    }
+
     startAmbient(name) {
         if (this.ambientAudio) {
             this.ambientAudio.pause();
@@ -629,9 +637,9 @@ export class Game {
         this.eventLog.push({ message, type, time: Date.now() });
         if (this.eventLog.length > this.maxLogEntries) this.eventLog.shift();
         this.updateEventLog();
-        if (type === 'positive')  this.playSound('goodnews');
-        else if (type === 'warning')   this.playSound('warning');
-        else if (type === 'important') this.playSound('alert');
+        if (type === 'positive')       this.playNotification('static/audio/goodnews.mp3');
+        else if (type === 'warning')   this.playNotification('static/audio/warning.mp3');
+        else if (type === 'important') this.playNotification('static/audio/alert.mp3');
     }
 
     updateEventLog() {
