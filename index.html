@@ -51,14 +51,14 @@
         </div>
 
         <div class="controls">
-            <button id="resetBtn" class="btn">🔄 Reset Game</button>
-            <button id="pauseBtn" class="btn">⏸️ Pause</button>
+            <button id="resetBtn" class="btn"> Restart</button>
+            <button id="pauseBtn" class="btn"> Pause</button>
             <button id="fullscreenBtn" class="btn btn-special">⛶ Fullscreen</button>
-            <button id="mateBtn" class="btn btn-action">💕 Hatch </button>
-            <button id="hideAllBtn" class="btn btn-action">🌳 Hide All Geese</button>
+            <button id="mateBtn" class="btn btn-action"> Hatch </button>
+            <button id="hideAllBtn" class="btn btn-action"> Hide </button>
         </div>
         <div class="controls">
-            <span class="migration-inline-label">🧭 Migration:</span>
+            <span class="migration-inline-label"> Migration:</span>
             <button id="migrateNorth" class="btn btn-direction" data-direction="north">⬆️ North</button>
             <button id="migrateSouth" class="btn btn-direction" data-direction="south">⬇️ South</button>
             <button id="migrateEast" class="btn btn-direction" data-direction="east">➡️ East</button>
@@ -95,14 +95,14 @@
     <div class="modal-overlay" id="instructionsModal">
         <div class="modal-box">
             <button class="modal-close" id="closeModal" aria-label="Close">&#x2715;</button>
-            <h3>🎮 How to Play</h3>
+            <h3> How to Play</h3>
             <ul>
                 <li>🥚 Eggs hatch into goslings (85% survival rate - affected by latitude!)</li>
-                <li>🐥 Goslings grow into adults (70% base survival - climate matters!)</li>
-                <li>🦊 Avoid foxes and 🦅 eagles - they hunt using stochastic pathfinding</li>
+                <li>🐥 Goslings grow into adult geese (70% base survival - climate matters!)</li>
+                <li>🦊 Avoid foxes and eagles - they hunt using stochastic pathfinding</li>
                 <li>💧 Ponds are safe zones for geese</li>
-                <li>🌳 Click individual geese or use "Hide All" button to hide in bushes</li>
-                <li>💕 Use "Mate" button to breed (80% success rate, requires energy)</li>
+                <li>🌳 Click individual geese or use "Hide" button to hide from predators</li>
+                <li>💕 Use "Hatch" button to breed (80% success rate, requires energy)</li>
                 <li>🧭 <strong>Migrate North/South/East/West</strong> - changes latitude/longitude!</li>
                 <li>🌡️ <strong>Climate zones affect survival</strong>:
                     <ul>
@@ -116,7 +116,7 @@
                 <li>⛈️ Random storms can hit at any latitude</li>
             </ul>
             <div class="modal-sim-box">
-                <h4>🎲 Stochastic Simulation Features:</h4>
+                <h4> Stochastic Simulation Features:</h4>
                 <p>This game uses <strong>Monte Carlo methods</strong> and <strong>geographic modeling</strong>:</p>
                 <ul>
                     <li>🪿 Latitude-based survival probabilities (like real goose migration!)</li>
