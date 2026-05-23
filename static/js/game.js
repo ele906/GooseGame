@@ -96,7 +96,7 @@ export class Game {
 
         const ls = (src) => { const a = new Audio(src); a.preload = 'auto'; return a; };
         this.sounds = {
-            honk:           ls('static/audio/honk.mp3'),
+            // honk:           ls('static/audio/honk.mp3'),
             happyhonk:      ls('static/audio/happyhonk.mp3'),
             migrationhonk:  ls('static/audio/migrationhonk.mp3'),
             migrationhonk2: ls('static/audio/migrationhonk2.mp3'),
@@ -188,7 +188,7 @@ export class Game {
 
         this.bgmAudio = s;
     }
-    
+
     stopBGM() {
         if (this.bgmAudio) {
             this.bgmAudio.pause();
@@ -221,7 +221,7 @@ export class Game {
                 const drain = g.hiding ? 5 : 15;
                 g.energy = Math.max(5, g.energy - drain);
             });
-            this.logEvent('⛈️ Storm saps the flock\'s energy!', 'warning');
+            this.logEvent('⛈️ Storm saps the flock\'s health!', 'warning');
         } else if (this.weather === 'rain') {
             let goslingsExposed = false;
             this.geese.forEach(g => {
@@ -240,20 +240,28 @@ export class Game {
         const adultCount = this.geese.filter(g => g.state === GooseState.ADULT).length;
         if (adultCount >= 4) {
             this.weeksAtLocation++;
-            const w = this.vegWarnThreshold;
-            if (this.weeksAtLocation === w) {
-                this.logEvent('🌿 Vegetation getting sparse — consider migrating!', 'warning');
-            } else if (this.weeksAtLocation === w + 3) {
-                this.logEvent('🌿 Habitat nearly stripped! Migrate or health will suffer!', 'important');
-            } else if (this.weeksAtLocation > w + 3) {
-                const drain = Math.min(10, 3 + (this.weeksAtLocation - (w + 3)));
-                this.geese.forEach(g => { g.energy = Math.max(5, g.energy - drain); });
-                this.logEvent(`🍂 Overgrazed habitat! −${drain} energy per goose. Migrate now!`, 'important');
+
+            const warningWeek = this.vegWarnThreshold + 4;
+            const dangerWeek = warningWeek + 6;
+            const damageWeek = dangerWeek + 4;
+
+            if (this.weeksAtLocation === warningWeek) {
+                this.logEvent('🌿 Vegetation getting sparse — you may want to migrate soon.', 'warning');
+                } else if (this.weeksAtLocation === dangerWeek) {
+                    this.logEvent('🌿 Habitat is getting worn down. Migration is recommended.', 'important');
+                } else if (this.weeksAtLocation >= damageWeek) {
+                    const drain = Math.min(8, 2 + Math.floor((this.weeksAtLocation - damageWeek) / 2));
+                    this.geese.forEach(g => {
+                        g.energy = Math.max(5, g.energy - drain);
+                    });
+                    this.logEvent(`🍂 Overgrazed habitat! −${drain} energy per goose.`, 'important');
+                }
+            } else {
+                if (this.weeksAtLocation > 0) {
+                    this.weeksAtLocation = Math.max(0, this.weeksAtLocation - 1);
+                }
             }
-        } else {
-            if (this.weeksAtLocation > 0) this.weeksAtLocation = Math.max(0, this.weeksAtLocation - 1);
         }
-    }
 
     changeWeather() {
         const r = Math.random();

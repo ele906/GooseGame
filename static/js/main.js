@@ -82,7 +82,9 @@ window.addEventListener('load', () => {
     window.addEventListener('keydown', (e) => {
         if (game.paused) return;
         const moveSpeed = 15;
-        const movable = game.geese.filter(g => g.state !== GooseState.EGG && !g.hatching);
+        const movable = game.geese.filter(g =>
+                g.state === GooseState.ADULT && !g.hatching
+            );
         if (!movable.length) return;
 
         // Flock centroid — stragglers get extra pull toward the center
@@ -105,16 +107,19 @@ window.addEventListener('load', () => {
                 e.preventDefault(); break;
             case 'ArrowLeft':
                 movable.forEach(g => {
-                    const pull = Math.max(0, g.x - cx) * cohesion;
-                    g.x = Math.max(50, g.x - (moveSpeed + pull));
+                    g.facingLeft = true;
+                    g.x = Math.max(50, g.x - moveSpeed);
                 });
-                e.preventDefault(); break;
+                e.preventDefault();
+                break;
+
             case 'ArrowRight':
                 movable.forEach(g => {
-                    const pull = Math.max(0, cx - g.x) * cohesion;
-                    g.x = Math.min(game.width - 50, g.x + (moveSpeed + pull));
+                    g.facingLeft = false;
+                    g.x = Math.min(game.width - 50, g.x + moveSpeed);
                 });
-                e.preventDefault(); break;
+                e.preventDefault();
+                break;
         }
     });
 
