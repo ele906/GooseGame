@@ -216,9 +216,12 @@ export class Game {
     honk() {
         if (this.paused) return;
         this.playSound(`angryhonk${1 + Math.floor(Math.random() * 5)}`);
+        const adultCount = this.geese.filter(g => g.state === GooseState.ADULT).length;
+        // 1 adult: ~20%, scales up to ~85% at 10+ adults
+        const scarePct = clamp(0.20 + (adultCount - 1) * 0.07, 0.20, 0.85);
         let scared = 0;
         this.predators.forEach(p => {
-            if (!p.leaving && Math.random() < 0.55) { p.leaving = true; scared++; }
+            if (!p.leaving && Math.random() < scarePct) { p.leaving = true; scared++; }
         });
         if (scared > 0) this.logEvent(`📢 HONK! Scared off ${scared} predator${scared > 1 ? 's' : ''}!`, 'positive');
         else            this.logEvent('📢 HONK! Predators unimpressed...', 'normal');
@@ -229,7 +232,10 @@ export class Game {
         if (this.week > 4) { this.week = 1; this.month = (this.month + 1) % 12; }
         this.geese.forEach(g => {
             if (g.weeksLeft > 0) g.weeksLeft--;
-            if (g.state === GooseState.ADULT) g.ageWeeks++;
+            if (g.state === GooseState.ADULT) {
+                g.ageWeeks++;
+                if (g.breedingCooldown > 0) g.breedingCooldown--;
+            }
         });
         for (let i = this.geese.length - 1; i >= 0; i--) {
             const g = this.geese[i];
@@ -266,30 +272,41 @@ export class Game {
             if (goslingsExposed) this.logEvent('🌧️ Goslings struggling in the rain! Hide them!', 'warning');
         }
 
-        // Overpopulation — vegetation depletion
+        // Overpopulation — vegetation depletion (scales with flock size)
         const adultCount = this.geese.filter(g => g.state === GooseState.ADULT).length;
+        const effectiveThreshold = Math.max(2, this.vegWarnThreshold - Math.floor(adultCount / 3));
         if (adultCount >= 4) {
             this.weeksAtLocation++;
 
-            const warningWeek = this.vegWarnThreshold + 4;
-            const dangerWeek = warningWeek + 6;
-            const damageWeek = dangerWeek + 4;
+            const warningWeek = effectiveThreshold + 4;
+            const dangerWeek  = warningWeek + 6;
+            const damageWeek  = dangerWeek + 4;
 
             if (this.weeksAtLocation === warningWeek) {
                 this.logEvent('🌿 Vegetation getting sparse — you may want to migrate soon.', 'warning');
-                } else if (this.weeksAtLocation === dangerWeek) {
-                    this.logEvent('🌿 Habitat is getting worn down. Migration is recommended.', 'important');
-                } else if (this.weeksAtLocation >= damageWeek) {
-                    const drain = Math.min(8, 2 + Math.floor((this.weeksAtLocation - damageWeek) / 2));
-                    this.geese.forEach(g => {
-                        g.energy = Math.max(5, g.energy - drain);
-                    });
-                    this.logEvent(`🍂 Overgrazed habitat! −${drain} energy per goose.`, 'important');
-                }
+            } else if (this.weeksAtLocation === dangerWeek) {
+                this.logEvent('🌿 Habitat is getting worn down. Migration is recommended.', 'important');
+            } else if (this.weeksAtLocation >= damageWeek) {
+                const drain = Math.min(8, 2 + Math.floor((this.weeksAtLocation - damageWeek) / 2));
+                this.geese.forEach(g => { g.energy = Math.max(5, g.energy - drain); });
+                this.logEvent(`🍂 Overgrazed habitat! −${drain} energy per goose.`, 'important');
+            }
+        } else {
+            if (this.weeksAtLocation > 0) this.weeksAtLocation = Math.max(0, this.weeksAtLocation - 1);
+        }
+
+        // Overcrowding pressure — large flocks burn through habitat fast
+        const overcrowdLimit = 12;
+        if (adultCount > overcrowdLimit) {
+            const excess = adultCount - overcrowdLimit;
+            const crowdDrain = Math.min(6, Math.floor(excess * 0.6));
+            this.geese.forEach(g => {
+                if (g.state === GooseState.ADULT) g.energy = Math.max(5, g.energy - crowdDrain);
+            });
+            if (adultCount > overcrowdLimit + 3) {
+                this.logEvent(`🪶 Flock too large for this habitat! Migrate now or geese will suffer.`, 'important');
             } else {
-                if (this.weeksAtLocation > 0) {
-                    this.weeksAtLocation = Math.max(0, this.weeksAtLocation - 1);
-                }
+                this.logEvent(`🌿 Habitat strained by large flock — consider migrating.`, 'warning');
             }
         }
 
@@ -440,7 +457,6 @@ export class Game {
             this.logEvent('⚠️ Safe period over! Predators are now active!', 'warning');
         }
 
-        if (this.breedingCooldown > 0) this.breedingCooldown--;
 
         if (this.gameTime % 120 === 0) this.advanceWeek();
 
@@ -464,7 +480,7 @@ export class Game {
             this.stormShakeX = 0; this.stormShakeY = 0; this.lightningFlash = 0;
         }
 
-        this.geese.forEach(g => g.move(this.width, this.height));
+        this.geese.forEach(g => g.move(this.width, this.height, this.geese));
         this.predators.forEach(p => p.move(this.width, this.height, this.geese));
 
         // Age predators; remove ones that have fled off-screen
@@ -484,17 +500,56 @@ export class Game {
         if (Math.random() < 0.0004) this.playSound('happyhonk');
 
         if (!this.safeMode) {
-            for (let i = this.geese.length - 1; i >= 0; i--) {
-                const goose = this.geese[i];
-                for (const predator of this.predators) {
-                    if (predator.canAttack(goose) && goose.state !== GooseState.EGG) {
+            const EAT_COOLDOWN_FRAMES = 20 * 60; // 20 seconds
+            for (const predator of this.predators) {
+                if (predator.eatCooldown > 0) { predator.eatCooldown--; continue; }
+
+                const catchProb = SIMULATION_PARAMS.PREDATOR_CATCH_PROBABILITY;
+                const inRange = (g) => predator.distance(g) < 30;
+
+                // Priority 1: eat 1 adult
+                const adults = this.geese.filter(g => g.state === GooseState.ADULT && !g.hiding && inRange(g));
+                if (adults.length > 0) {
+                    const target = adults[0];
+                    if (Math.random() < catchProb * (1 - target.survivalChance)) {
                         if (predator.type === PredatorType.EAGLE) this.playSound('eagle');
-                        const name = goose.state === GooseState.GOSLING ? 'gosling' : 'goose';
-                        this.logEvent(`🦊 A ${predator.type} ate a ${name}!`, 'important');
-                        this.geese.splice(i, 1);
+                        this.logEvent(`🦊 A ${predator.type} caught a goose!`, 'important');
+                        this.geese.splice(this.geese.indexOf(target), 1);
                         this.totalDied++;
-                        break;
+                        predator.eatCooldown = EAT_COOLDOWN_FRAMES;
+                        continue;
                     }
+                }
+
+                // Priority 2: eat up to 2 goslings
+                const goslings = this.geese.filter(g => g.state === GooseState.GOSLING && !g.hiding && inRange(g));
+                if (goslings.length > 0) {
+                    let ate = 0;
+                    for (const g of goslings) {
+                        if (ate >= 2) break;
+                        if (Math.random() < catchProb * (1 - g.survivalChance)) {
+                            this.geese.splice(this.geese.indexOf(g), 1);
+                            this.totalDied++;
+                            ate++;
+                        }
+                    }
+                    if (ate > 0) {
+                        if (predator.type === PredatorType.EAGLE) this.playSound('eagle');
+                        this.logEvent(`🦊 A ${predator.type} ate ${ate} gosling${ate > 1 ? 's' : ''}!`, 'important');
+                        predator.eatCooldown = EAT_COOLDOWN_FRAMES;
+                        continue;
+                    }
+                }
+
+                // Priority 3: destroy ALL eggs in range
+                const eggs = this.geese.filter(g => g.state === GooseState.EGG && inRange(g));
+                if (eggs.length > 0 && Math.random() < catchProb * 3) {
+                    for (const g of eggs) {
+                        this.geese.splice(this.geese.indexOf(g), 1);
+                        this.totalDied++;
+                    }
+                    this.logEvent(`🦊 A ${predator.type} destroyed ${eggs.length} egg${eggs.length > 1 ? 's' : ''}!`, 'important');
+                    predator.eatCooldown = EAT_COOLDOWN_FRAMES;
                 }
             }
         }
@@ -537,10 +592,12 @@ export class Game {
 
         // Hatching
         const stormMod  = this.weather === 'storm' ? 0.70 : 1.0;
+        const goslingCount = this.geese.filter(g => g.state === GooseState.GOSLING).length;
+        const goslingCrowdMod = goslingCount > 5 ? Math.max(0.4, 1 - (goslingCount - 5) * 0.06) : 1.0;
         const eggsReady = this.geese.filter(g => g.state === GooseState.EGG && g.weeksLeft <= 0);
         let hatchedCount = 0, failedCount = 0;
         eggsReady.forEach(goose => {
-            if (Math.random() < goose.survivalChance * stormMod) {
+            if (Math.random() < goose.survivalChance * stormMod * goslingCrowdMod) {
                 goose.state = GooseState.GOSLING;
                 goose.weeksToMature = Math.round(clamp(randomNormal(12, 1.5), 8, 16));
                 goose.weeksLeft = goose.weeksToMature;
@@ -557,7 +614,7 @@ export class Game {
         const goslingsReady = this.geese.filter(g => g.state === GooseState.GOSLING && g.weeksLeft <= 0);
         let maturedCount = 0, diedCount = 0;
         goslingsReady.forEach(goose => {
-            if (Math.random() < goose.survivalChance * stormMod) {
+            if (Math.random() < goose.survivalChance * stormMod * goslingCrowdMod) {
                 goose.state = GooseState.ADULT;
                 goose.parent = null;
                 this.score += 10;
@@ -579,15 +636,30 @@ export class Game {
     }
 
     breed() {
-        if (this.breedingCooldown > 0) {
-            this.logEvent(`⏳ Hatching on cooldown — wait a bit longer`, 'warning');
+        const adultCount = this.geese.filter(g => g.state === GooseState.ADULT).length;
+        const BREED_SOFT_CAP = 10;
+        const BREED_HARD_CAP = 18;
+
+        if (adultCount >= BREED_HARD_CAP) {
+            this.logEvent(`🪶 Flock too large to breed — migrate to a new habitat first`, 'important');
             return;
         }
 
         const allMales   = this.geese.filter(g => g.state === GooseState.ADULT && g.gender === 'male');
         const allFemales = this.geese.filter(g => g.state === GooseState.ADULT && g.gender === 'female');
-        const males   = allMales.filter(g => g.energy > 50);
-        const females = allFemales.filter(g => g.energy > 50);
+        const MAX_BREED_AGE = 520; // ~10 years in weeks
+        const males   = allMales.filter(g => g.energy > 50 && g.ageWeeks < MAX_BREED_AGE);
+        const females = allFemales.filter(g => g.energy > 50 && g.breedingCooldown === 0 && !g.hatching && g.ageWeeks < MAX_BREED_AGE);
+
+        const tooOldFemales = allFemales.filter(g => g.ageWeeks >= MAX_BREED_AGE);
+        if (tooOldFemales.length > 0 && females.length === 0 && allFemales.length === tooOldFemales.length) {
+            this.logEvent(`👴 All geese are too old to breed`, 'warning');
+            return;
+        }
+        if (females.length === 0 && allFemales.length > 0) {
+            this.logEvent(`⏳ All females on cooldown or exhausted — wait a bit`, 'warning');
+            return;
+        }
 
         if (allMales.length === 0 || allFemales.length === 0) {
             const missing = allMales.length === 0 ? 'goose' : 'gander';
@@ -600,10 +672,15 @@ export class Game {
             return;
         }
 
+        // Soft cap: reduce success chance as flock grows past 10
+        const crowdPenalty = adultCount > BREED_SOFT_CAP
+            ? Math.max(0, 1 - (adultCount - BREED_SOFT_CAP) * 0.08)
+            : 1.0;
+
         const breedingSuccess = clamp(
             randomNormal(SIMULATION_PARAMS.BREEDING_SUCCESS_MEAN, SIMULATION_PARAMS.BREEDING_SUCCESS_STDDEV),
             0.2, 1.0
-        );
+        ) * crowdPenalty;
         if (Math.random() < breedingSuccess) {
             const mother = females[Math.floor(Math.random() * females.length)];
             const clutchSize = Math.round(clamp(
@@ -623,17 +700,20 @@ export class Game {
                 this.totalBorn++;
             }
             this.logEvent(`💕 Hatching successful! ${clutchSize} egg${clutchSize > 1 ? 's' : ''} laid`, 'positive');
-            mother.energy -= 15;
+            mother.energy = Math.max(10, mother.energy - 35);
+            this.geese.forEach(g => {
+                if (g.state === GooseState.ADULT && g !== mother)
+                    g.energy = Math.max(10, g.energy - 8);
+            });
             mother.hatching = true;
+            mother.breedingCooldown = SIMULATION_PARAMS.BREEDING_COOLDOWN;
         } else {
             this.logEvent(`💔 Hatch failed — bad luck this time`, 'warning');
         }
-        this.breedingCooldown = SIMULATION_PARAMS.BREEDING_COOLDOWN;
     }
 
     forceMating() {
         if (this.paused) return;
-        this.breedingCooldown = 0;
         this.breed();
     }
 

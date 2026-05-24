@@ -33,7 +33,8 @@ export class Goose {
 
         // Random visual variant for adults (0 = canadagoose_adult, 1 = canadagoose_adult2)
         this.adultVariant = Math.floor(Math.random() * 2);
-        this.hatching = false; // true when sitting on a nest of eggs
+        this.hatching = false;
+        this.breedingCooldown = 0;
 
         // Personal scatter offset so goslings don't all stack on the parent
         this.flockOffsetX = (Math.random() - 0.5) * 80;
@@ -61,7 +62,7 @@ export class Goose {
         return clamp(chance, 0, 1.0);
     }
 
-    move(width, height) {
+    move(width, height, flock = []) {
         if (this.state === GooseState.EGG) return;
         if (this.hiding)  return; // frozen while hiding in bush
         if (this.hatching) return; // mother stays on nest
@@ -91,17 +92,31 @@ export class Goose {
             this.vx = dx / 20 + Math.random() * 0.6 - 0.3;
             this.vy = dy / 20 + Math.random() * 0.6 - 0.3;
         } else {
-            if (Math.random() < 0.06) {
-                this.vx += Math.random() * 0.14 - 0.07;
-                this.vy += Math.random() * 0.14 - 0.07;
+            if (Math.random() < 0.08) {
+                this.vx += Math.random() * 0.22 - 0.11;
+                this.vy += Math.random() * 0.22 - 0.11;
             }
-            this.vx *= 0.995;
-            this.vy *= 0.995;
+
+            // Separation — push away from nearby geese
+            for (const other of flock) {
+                if (other === this || other.state === GooseState.EGG) continue;
+                const dx = this.x - other.x;
+                const dy = this.y - other.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < 40 && dist > 0) {
+                    const force = (40 - dist) / 40 * 0.12;
+                    this.vx += (dx / dist) * force;
+                    this.vy += (dy / dist) * force;
+                }
+            }
+
+            this.vx *= 0.997;
+            this.vy *= 0.997;
             const regenRate = currentDifficulty === 'hard' ? 0.03 : currentDifficulty === 'normal' ? 0.07 : 0.1;
             if (this.energy < 100) this.energy = Math.min(100, this.energy + regenRate);
         }
 
-        const maxSpeed = this.state === GooseState.GOSLING ? 0.2 : 0.25;
+        const maxSpeed = this.state === GooseState.GOSLING ? 0.3 : 0.4;
         const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
         if (speed > maxSpeed) {
             this.vx = (this.vx / speed) * maxSpeed;

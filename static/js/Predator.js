@@ -11,6 +11,7 @@ export class Predator {
         this.variant = Math.floor(Math.random() * 3);
         this.lifespan = 900 + Math.floor(Math.random() * 900); // 15–30 sec at 60fps
         this.leaving  = false;
+        this.eatCooldown = 0; // frames remaining before can eat again
     }
 
     move(width, height, geese) {
