@@ -12,11 +12,11 @@
         <header>
             <h1> Goose Game</h1>
             <div class="difficulty-toggle header-difficulty">
-                <span class="difficulty-label"> Difficulty:</span>
                 <button id="diffEasy" class="btn btn-diff btn-diff-easy" data-diff="easy">🌱 Easy</button>
                 <button id="diffNormal" class="btn btn-diff btn-diff-normal btn-diff-active" data-diff="normal">✨ Normal</button>
                 <button id="diffHard" class="btn btn-diff btn-diff-hard" data-diff="hard">🔥 Hard</button>
-                <span style="display:inline-block;width:16px;"></span>
+                <span class="header-divider"></span>
+                <button id="rulesBtn" class="btn"> Rules</button>
                 <button id="fullscreenBtn" class="btn btn-special">⛶ Fullscreen</button>
                 <button id="leaderboardBtn" class="btn">Leaderboard</button>
             </div>
@@ -34,6 +34,10 @@
             <div class="info-box info-box-date">
                 <h4>📅 Date</h4>
                 <div id="dateDisplay"><strong>Jan Week 1</strong></div>
+            </div>
+            <div class="info-box">
+                <h4>⭐ Score</h4>
+                <div id="scoreDisplay">0 wks</div>
             </div>
             <div class="info-box">
                 <h4>🌤️ Weather</h4>

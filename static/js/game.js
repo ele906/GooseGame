@@ -1001,10 +1001,9 @@ export class Game {
     }
 
     updateUI() {
-        const elapsed = Math.floor((Date.now() - this.startTime) / 1000);
-        const scoreEl = document.getElementById('score'); if (scoreEl) scoreEl.textContent = `Score: ${this.score}`;
-        const countEl = document.getElementById('geese-count'); if (countEl) countEl.textContent = `Geese: ${this.geese.length}`;
-        const timeEl  = document.getElementById('time'); if (timeEl) timeEl.textContent = `Time: ${elapsed}s`;
+        const weeks = Math.floor(this.gameTime / 120);
+        const scoreDisplayEl = document.getElementById('scoreDisplay');
+        if (scoreDisplayEl) scoreDisplayEl.textContent = `${weeks} wk${weeks === 1 ? '' : 's'}`;
 
         const latDir  = this.latitude  >= 0 ? 'N' : 'S';
         const longDir = this.longitude >= 0 ? 'E' : 'W';

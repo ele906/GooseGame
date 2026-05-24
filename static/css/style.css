@@ -184,6 +184,16 @@ h1 {
     white-space: nowrap;
 }
 
+.header-divider {
+    display: inline-block;
+    width: 2px;
+    height: 26px;
+    background: #ccc;
+    border-radius: 2px;
+    vertical-align: middle;
+    margin: 0 6px;
+}
+
 .btn-diff-easy {
     background: #b8e8ce;
     color: #1a4530;
@@ -232,6 +242,7 @@ h1 {
     gap: 12px;
     margin: 10px 0;
     width: 100%;
+    flex-wrap: wrap;
 }
 
 .info-box {

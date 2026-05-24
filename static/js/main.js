@@ -8,6 +8,7 @@ let game;
 let scoreSubmitted = false;
 let submitScore = null;
 let getTopScores = null;
+let rulesMode = false;
 
 import('./leaderboard.js').then(m => {
     submitScore = m.submitScore;
@@ -181,11 +182,21 @@ window.addEventListener('load', () => {
 
     function closeInstructions() {
         document.getElementById('instructionsModal').classList.add('hidden');
-        showDifficultyModal(false);
+        document.getElementById('startGameBtn').textContent = "Let's Go! 🪿";
+        if (!rulesMode) {
+            showDifficultyModal(false);
+        }
+        rulesMode = false;
     }
 
     document.getElementById('closeModal').addEventListener('click', closeInstructions);
     document.getElementById('startGameBtn').addEventListener('click', closeInstructions);
+
+    document.getElementById('rulesBtn').addEventListener('click', () => {
+        rulesMode = true;
+        document.getElementById('startGameBtn').textContent = 'Close';
+        document.getElementById('instructionsModal').classList.remove('hidden');
+    });
     document.getElementById('exitGameBtn').addEventListener('click', () => {
         if (!game.gameOver) game.gameOver = true;
     });
@@ -220,7 +231,7 @@ window.addEventListener('load', () => {
         errorEl.textContent = '';
         document.getElementById('submitScoreBtn').textContent = 'Submitting...';
         try {
-            await submitScore(clean, game.score, currentDifficulty);
+            await submitScore(clean, Math.floor(game.gameTime / 120), currentDifficulty);
             document.getElementById('scoreSubmitForm').style.display = 'none';
             document.getElementById('scoreModalText').textContent = '🎉 Score submitted! Ready to play again?';
             document.getElementById('viewLeaderboardBtn').style.display = '';
