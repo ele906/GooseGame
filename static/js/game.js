@@ -310,6 +310,7 @@ export class Game {
                 this.logEvent(`🌿 Habitat strained by large flock — consider migrating.`, 'warning');
             }
         }
+    }
 
     changeWeather() {
     const r = Math.random();
