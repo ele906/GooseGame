@@ -195,6 +195,7 @@ export class Game {
     }
 
     startBGM() {
+        if (this.bgmVariant === null) this.bgmVariant = Math.random() < 0.5 ? '' : '2';
         const map = { easy: `bgmEasy${this.bgmVariant}`, normal: `bgmMed${this.bgmVariant}`, hard: `bgmHard${this.bgmVariant}` };
         const s = this.sounds[map[currentDifficulty] || 'bgmMed'];
 
@@ -479,6 +480,9 @@ export class Game {
         this.bushes.push(new Bush(200, 500));
         this.bushes.push(new Bush(600, 300));
         this.bushes.push(new Bush(900, 150));
+        this.bushes.push(new Bush(150, 180));
+        this.bushes.push(new Bush(750, 420));
+        this.bushes.push(new Bush(450, 80));
 
         this.initialPredatorsSpawned = false;
     }
@@ -1081,7 +1085,7 @@ export class Game {
         }
 
         const vegRadii = { bush: 65, bush2: 65, bush3: 65, cactus: 55, palm: 70, snow: 85, snow2: 85 };
-        const numVeg = 4 + Math.floor(Math.random() * 4);
+        const numVeg = 7 + Math.floor(Math.random() * 4);
         for (let i = 0; i < numVeg; i++) {
             const type   = vegTypes[Math.floor(Math.random() * vegTypes.length)];
             const radius = vegRadii[type] || 50;
