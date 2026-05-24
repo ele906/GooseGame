@@ -33,7 +33,7 @@ window.addEventListener('load', () => {
     function gameLoop() {
         if (!game.paused && keysHeld.size) {
             const moveSpeed = 4;
-            const movable = game.geese.filter(g => g.state === GooseState.ADULT && !g.hatching);
+            const movable = game.geese.filter(g => g.state === GooseState.ADULT && !g.hatching && !g.hiding);
             movable.forEach(g => {
                 g.vx = 0; g.vy = 0;
                 if (keysHeld.has('ArrowLeft'))  { g.x = Math.max(50, g.x - moveSpeed); g.facingLeft = true; }

@@ -290,7 +290,7 @@ export class Game {
             } else if (this.weeksAtLocation >= damageWeek) {
                 const drain = Math.min(8, 2 + Math.floor((this.weeksAtLocation - damageWeek) / 2));
                 this.geese.forEach(g => { g.energy = Math.max(5, g.energy - drain); });
-                this.logEvent(`🍂 Overgrazed habitat! −${drain} energy per goose.`, 'important');
+                this.logEvent(`🍂 Overgrazed habitat! −${drain} health per goose.`, 'important');
             }
         } else {
             if (this.weeksAtLocation > 0) this.weeksAtLocation = Math.max(0, this.weeksAtLocation - 1);
