@@ -231,7 +231,7 @@ export class Game {
     advanceWeek() {
         this.week++;
         if (this.week > 4) { this.week = 1; this.month = (this.month + 1) % 12; }
-        if (Math.random() < 0.08) this.showFunFact('general');
+        if (Math.random() < 0.04) this.showFunFact('general');
         if (this.breedingCooldown > 0) this.breedingCooldown--;
         this.geese.forEach(g => {
             if (g.weeksLeft > 0) g.weeksLeft--;
@@ -277,7 +277,7 @@ export class Game {
 
         // Overpopulation — vegetation depletion (scales with flock size)
         const adultCount = this.geese.filter(g => g.state === GooseState.ADULT).length;
-        const effectiveThreshold = Math.max(2, this.vegWarnThreshold - Math.floor(adultCount / 3));
+        const effectiveThreshold = Math.max(4, this.vegWarnThreshold - Math.floor(adultCount / 5));
         if (adultCount >= 4) {
             this.weeksAtLocation++;
 
@@ -761,16 +761,18 @@ export class Game {
     showFunFact(category = 'general') {
         const facts = {
             hatch: [
-                "Canada geese lay 2–8 eggs per clutch — the more, the merrier!",
+                "Canada geese lay 2-8 eggs per clutch, averaging around 5.",
                 "Goslings can walk, swim, and feed themselves within 24 hours of hatching!",
-                "Canada geese mate for life and often return to the same nesting spot every year.",
-                "The gander (male) stands guard while the female sits on the eggs.",
-                "Goose eggs take about 25–28 days to hatch.",
+                "Canada geese mate for life and return to the same nesting spot every year.",
+                "The gander stands guard while the female incubates — he never leaves her side.",
+                "Goose eggs take about 25-28 days to hatch.",
                 "Goslings can dive underwater to dodge predators even before they can fly!",
                 "Multiple goose families sometimes merge into giant 'gang broods' to raise goslings together.",
-                "Goslings imprint on their parents within hours of hatching — they follow whoever they see first!",
+                "Goslings imprint on their parents within hours of hatching.",
                 "Young Canada geese stay with their parents for their entire first year of life.",
                 "If a nest is destroyed, a goose may re-nest and try again within the same season.",
+                "Both parents aggressively defend their goslings — even from dogs and humans much larger than them.",
+                "Goslings huddle under their mother's wings at night to stay warm for the first few weeks.",
             ],
             migration: [
                 "Canada geese can fly up to 1,500 miles in a single day during migration!",
@@ -782,21 +784,32 @@ export class Game {
                 "Canada geese have been recorded flying as high as 29,000 feet during migration!",
                 "Geese follow rivers, coastlines, and mountain ranges as natural navigation guides.",
                 "In autumn, Canada geese can fly over 600 miles nonstop before resting.",
-                "Some Canada goose populations have stopped migrating entirely and now live year-round in cities!",
+                "Some Canada goose populations have stopped migrating entirely and now live year-round in cities.",
+                "Young geese learn migration routes from their parents on their very first journey.",
+                "Geese often honk during flight to encourage each other and keep the formation tight.",
+                "Canada geese typically migrate at night, using stars to stay on course.",
             ],
             general: [
                 "Canada geese spend about half their waking day grazing on grass and aquatic plants.",
                 "A goose's honk can be heard up to a mile away!",
-                "Canada geese molt every summer, losing their flight feathers and going flightless for 4–6 weeks.",
+                "Canada geese molt every summer, losing their flight feathers and going flightless for 4-6 weeks.",
                 "Geese can sleep with one eye open, keeping half their brain alert for danger.",
                 "Canada geese are strong swimmers and can stay afloat for hours.",
                 "Geese have a special oil gland that waterproofs their feathers — they preen constantly to stay dry.",
-                "A group of geese on the ground is a 'gaggle'; in flight, it's called a 'skein'.",
+                "A group of geese on the ground is called a 'gaggle'; in flight, it's called a 'skein'.",
                 "Geese prefer open areas near water so they can spot predators from far away.",
-                "Canada geese can live up to 24 years in the wild!",
+                "Canada geese can live up to 24 years in the wild.",
                 "Canada geese were introduced to Europe, New Zealand, and even Chile.",
-                "Despite their size, Canada geese can run at speeds of up to 5 mph on land.",
-                "Goslings learn to swim almost immediately after hatching — no swimming lessons needed!",
+                "Despite their size, Canada geese can run at up to 5 mph on land.",
+                "Goslings learn to swim almost immediately after hatching — no lessons needed!",
+                "Canada geese are highly territorial during nesting season and will chase off much larger animals.",
+                "Geese have serrated edges on their bills called lamellae, which help them grip slippery plants.",
+                "Geese communicate through at least 13 different calls, from soft murmurs to loud alarm honks.",
+                "Canada geese can drink both fresh and salt water.",
+                "Geese have excellent memory and can recognize specific humans who have threatened them before.",
+                "Canada geese can take off nearly vertically when startled, like a feathered helicopter.",
+                "The black-and-white neck pattern of a Canada goose is unique — like a fingerprint.",
+                "Canada geese have been clocked flying at over 70 mph with a strong tailwind.",
             ],
         };
         const pool = facts[category] || facts.general;
@@ -898,7 +911,7 @@ export class Game {
             this.latitude               = parseFloat(newLat.toFixed(1));
             this.longitude              = parseFloat(newLong.toFixed(1));
             this.weeksAtLocation        = 0;
-            this.vegWarnThreshold       = 4 + Math.floor(Math.random() * 5);
+            this.vegWarnThreshold       = 10 + Math.floor(Math.random() * 7);
             this.geese.forEach(g => { g.survivalChance = g.calculateSurvivalChance(); });
             this.regenerateTerrain();
             this.advanceWeek();
