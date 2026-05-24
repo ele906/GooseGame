@@ -429,6 +429,10 @@ export class Game {
                     goose.y = nearestBush.y;
                     const name = goose.state === GooseState.GOSLING ? 'gosling' : 'goose';
                     this.logEvent(`🌳 A ${name} is hiding!`, 'normal');
+                    if (this.weather === 'sunny') {
+                        goose.energy = Math.max(5, goose.energy - 3);
+                        this.logEvent(`☀️ Hiding on a sunny day — ${name} needs exercise! (-3 energy)`, 'warning');
+                    }
                     clearTimeout(goose.hideTimer);
                         goose.hideTimer = setTimeout(() => {
                             goose.hiding = false;
@@ -575,19 +579,25 @@ export class Game {
 
         const { spawnInterval, spawnThreshold } = DIFFICULTY_SETTINGS[currentDifficulty];
         if (this.gameTime % spawnInterval === 0 && !this.safeMode) {
-            const gooseCount = this.geese.filter(g => g.state === GooseState.ADULT).length;
-            const spawnChance = currentDifficulty === 'hard' ? 0.7 : gooseCount / 10;
-            if (gooseCount > spawnThreshold && Math.random() < spawnChance) {
-                const type = Math.random() < 0.5 ? PredatorType.FOX : PredatorType.EAGLE;
-                const edge = Math.floor(Math.random() * 4);
-                let x, y;
-                if      (edge === 0) { x = Math.random() * this.width;  y = 0; }
-                else if (edge === 1) { x = this.width;  y = Math.random() * this.height; }
-                else if (edge === 2) { x = Math.random() * this.width;  y = this.height; }
-                else                 { x = 0; y = Math.random() * this.height; }
-                this.predators.push(new Predator(type, x, y));
-                if (type === PredatorType.EAGLE) this.playSound('eagle');
-                this.logEvent(`⚠️ New ${type} appeared! (${gooseCount} geese attracted predators)`, 'warning');
+            const adultCount = this.geese.filter(g => g.state === GooseState.ADULT).length;
+            const totalCount = this.geese.length;
+            const spawnChance = currentDifficulty === 'hard' ? 0.7 : Math.min(1, totalCount / 8);
+            const maxSpawns = totalCount >= 12 ? 2 : 1;
+            if (adultCount > spawnThreshold) {
+                for (let s = 0; s < maxSpawns; s++) {
+                    if (Math.random() < spawnChance) {
+                        const type = Math.random() < 0.5 ? PredatorType.FOX : PredatorType.EAGLE;
+                        const edge = Math.floor(Math.random() * 4);
+                        let x, y;
+                        if      (edge === 0) { x = Math.random() * this.width;  y = 0; }
+                        else if (edge === 1) { x = this.width;  y = Math.random() * this.height; }
+                        else if (edge === 2) { x = Math.random() * this.width;  y = this.height; }
+                        else                 { x = 0; y = Math.random() * this.height; }
+                        this.predators.push(new Predator(type, x, y));
+                        if (type === PredatorType.EAGLE) this.playSound('eagle');
+                        this.logEvent(`⚠️ New ${type} appeared! (${totalCount} geese attracted predators)`, 'warning');
+                    }
+                }
             }
         }
 
@@ -890,6 +900,10 @@ export class Game {
         });
         if (hiddenCount > 0) {
             this.logEvent(`🌳 ${hiddenCount} ${hiddenCount > 1 ? 'geese' : 'goose'} hiding in bushes!`, 'normal');
+            if (this.weather === 'sunny') {
+                this.geese.forEach(g => { if (g.hiding) g.energy = Math.max(5, g.energy - 3); });
+                this.logEvent('☀️ Hiding on a sunny day — geese need exercise! (-3 energy each)', 'warning');
+            }
         }
     }
 
