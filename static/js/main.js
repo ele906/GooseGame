@@ -223,6 +223,7 @@ window.addEventListener('load', () => {
             await submitScore(clean, game.score, currentDifficulty);
             document.getElementById('scoreSubmitForm').style.display = 'none';
             document.getElementById('scoreModalText').textContent = '🎉 Score submitted! Ready to play again?';
+            document.getElementById('viewLeaderboardBtn').style.display = '';
         } catch {
             errorEl.textContent = 'Failed to submit, try again.';
             document.getElementById('submitScoreBtn').textContent = 'Submit Score';
@@ -234,6 +235,14 @@ window.addEventListener('load', () => {
         document.getElementById('scoreModalText').textContent = 'Better luck next time! Ready to play again?';
     });
 
+    document.getElementById('viewLeaderboardBtn').addEventListener('click', () => {
+        const diff = currentDifficulty;
+        document.querySelectorAll('.lb-tab').forEach(t => t.classList.remove('active-tab'));
+        document.querySelector(`.lb-tab[data-diff="${diff}"]`)?.classList.add('active-tab');
+        document.getElementById('leaderboardModal').classList.remove('hidden');
+        loadLeaderboard(diff);
+    });
+
     document.getElementById('playAgainBtn').addEventListener('click', () => {
         document.getElementById('scoreModal').classList.add('hidden');
         document.getElementById('scoreSubmitForm').style.display = '';
@@ -241,6 +250,7 @@ window.addEventListener('load', () => {
         document.getElementById('submitScoreBtn').textContent = 'Submit Score';
         document.getElementById('usernameInput').value = '';
         document.getElementById('scoreModalError').textContent = '';
+        document.getElementById('viewLeaderboardBtn').style.display = 'none';
         showDifficultyModal(true);
     });
 
