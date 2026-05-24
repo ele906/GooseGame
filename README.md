@@ -1,3 +1,5 @@
+backup site - https://ele906.github.io/GooseGameBackup/
+
 # 🦆 Goose Migration Game - Advanced Ecological Simulation
 
 A browser-based ecological simulation game featuring **stochastic modeling**, **normal distributions**, **individual genetic variation**, and **dynamic environmental systems**. Watch geese migrate, breed, and survive in realistic climate zones with day/night cycles and adaptive terrain!
