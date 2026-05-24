@@ -674,18 +674,16 @@ export class Game {
             return;
         }
         if (females.length === 0 && allFemales.length > 0) {
-            this.logEvent(`⏳ All females on cooldown or exhausted — wait a bit`, 'warning');
+            this.logEvent(`⏳ All geese on cooldown or exhausted — wait a bit`, 'warning');
             return;
         }
 
         if (allMales.length === 0 || allFemales.length === 0) {
-            const missing = allMales.length === 0 ? 'goose' : 'gander';
-            this.logEvent(`💔 Hatch failed — no adult ${missing} in the flock`, 'warning');
+            this.logEvent(`💔 Hatch failed — not enough geese in the flock`, 'warning');
             return;
         }
         if (males.length === 0 || females.length === 0) {
-            const who = males.length === 0 ? 'gander' : 'goose';
-            this.logEvent(`💔 Hatch failed — ${who} too exhausted (health < 50%)`, 'warning');
+            this.logEvent(`💔 Hatch failed — geese too exhausted (health < 50%)`, 'warning');
             return;
         }
 
