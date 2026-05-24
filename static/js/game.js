@@ -432,7 +432,7 @@ export class Game {
                     this.logEvent(`🌳 A ${name} is hiding!`, 'normal');
                     if (this.weather === 'sunny') {
                         goose.energy = Math.max(5, goose.energy - 3);
-                        this.logEvent(`☀️ Hiding on a sunny day — ${name} needs exercise! (-3 energy)`, 'warning');
+                        this.logEvent(`☀️ Hiding on a sunny day — ${name} needs exercise! (-3 health)`, 'warning');
                     }
                     clearTimeout(goose.hideTimer);
                         goose.hideTimer = setTimeout(() => {
@@ -685,7 +685,7 @@ export class Game {
         }
         if (males.length === 0 || females.length === 0) {
             const who = males.length === 0 ? 'gander' : 'goose';
-            this.logEvent(`💔 Hatch failed — ${who} too exhausted (energy < 50%)`, 'warning');
+            this.logEvent(`💔 Hatch failed — ${who} too exhausted (health < 50%)`, 'warning');
             return;
         }
 
@@ -800,7 +800,7 @@ export class Game {
         const migrants = this.geese.filter(g => g.state === GooseState.ADULT && !g.hatching);
         if (this.fastMigration) {
             migrants.forEach(g => { g.energy = Math.max(5, g.energy - 80); });
-            this.logEvent('⚡ Sprint! Energy heavily depleted', 'warning');
+            this.logEvent('⚡ Sprint! Health heavily depleted', 'warning');
         } else {
             migrants.forEach(g => { g.energy = Math.max(15, g.energy - 20); });
         }
@@ -903,7 +903,12 @@ export class Game {
             this.logEvent(`🌳 ${hiddenCount} ${hiddenCount > 1 ? 'geese' : 'goose'} hiding in bushes!`, 'normal');
             if (this.weather === 'sunny') {
                 this.geese.forEach(g => { if (g.hiding) g.energy = Math.max(5, g.energy - 3); });
-                this.logEvent('☀️ Hiding on a sunny day — geese need exercise! (-3 energy each)', 'warning');
+                const sunnyMsg = [
+                    '☀️ Hiding on a sunny day — geese need exercise! (-3 health)',
+                    '☀️ Hiding on a sunny day — geese need their vitamin D! (-3 health)',
+                    '☀️ Hiding on a sunny day — geese are too weak without migrating! (-3 health)',
+                ][Math.floor(Math.random() * 3)];
+                this.logEvent(sunnyMsg, 'warning');
             }
         }
     }
