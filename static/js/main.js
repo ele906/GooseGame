@@ -187,7 +187,11 @@ window.addEventListener('load', () => {
         if (!rulesMode) {
             showDifficultyModal(false);
         } else {
-            if (rulesPausedGame) game.paused = false;
+            if (rulesPausedGame) {
+                game.paused = false;
+                if (game.ambientAudio) game.ambientAudio.play().catch(() => {});
+                if (game.bgmAudio)     game.bgmAudio.play().catch(() => {});
+            }
             rulesPausedGame = false;
         }
         rulesMode = false;
@@ -199,7 +203,11 @@ window.addEventListener('load', () => {
     document.getElementById('rulesBtn').addEventListener('click', () => {
         rulesMode = true;
         rulesPausedGame = !game.manuallyPaused && !game.gameOver;
-        if (rulesPausedGame) game.paused = true;
+        if (rulesPausedGame) {
+            game.paused = true;
+            if (game.ambientAudio) game.ambientAudio.pause();
+            if (game.bgmAudio)     game.bgmAudio.pause();
+        }
         document.getElementById('startGameBtn').textContent = 'Close';
         document.getElementById('instructionsModal').classList.remove('hidden');
     });
