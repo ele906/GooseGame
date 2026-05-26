@@ -722,6 +722,38 @@ export class Game {
                     }
                     this.logEvent(`🦊 A ${predator.type} destroyed ${eggs.length} egg${eggs.length > 1 ? 's' : ''}!`, 'important');
                     predator.eatCooldown = EAT_COOLDOWN_FRAMES;
+                    continue;
+                }
+
+                // Priority 4: small chance to sniff out hiding geese
+                const hideBreakChance = currentDifficulty === 'hard' ? 0.15 :
+                                        currentDifficulty === 'normal' ? 0.10 : 0.05;
+                if (Math.random() < hideBreakChance) {
+                    const hidingAdults = this.geese.filter(g => g.state === GooseState.ADULT && g.hiding && inRange(g));
+                    if (hidingAdults.length > 0) {
+                        const target = hidingAdults[Math.floor(Math.random() * hidingAdults.length)];
+                        if (Math.random() < catchProb * (1 - target.survivalChance)) {
+                            if (predator.type === PredatorType.EAGLE) this.playSound('eagle');
+                            else if (predator.type === PredatorType.FOX) this.playSound('fox', 2);
+                            this.logEvent(`🌳 A ${predator.type} sniffed out a hiding goose!`, 'important');
+                            this.geese.splice(this.geese.indexOf(target), 1);
+                            this.totalDied++;
+                            predator.eatCooldown = EAT_COOLDOWN_FRAMES;
+                            continue;
+                        }
+                    }
+                    const hidingGoslings = this.geese.filter(g => g.state === GooseState.GOSLING && g.hiding && inRange(g));
+                    if (hidingGoslings.length > 0) {
+                        const target = hidingGoslings[Math.floor(Math.random() * hidingGoslings.length)];
+                        if (Math.random() < catchProb * (1 - target.survivalChance)) {
+                            if (predator.type === PredatorType.EAGLE) this.playSound('eagle');
+                            else if (predator.type === PredatorType.FOX) this.playSound('fox', 2);
+                            this.logEvent(`🌳 A ${predator.type} found a gosling hiding in the bushes!`, 'important');
+                            this.geese.splice(this.geese.indexOf(target), 1);
+                            this.totalDied++;
+                            predator.eatCooldown = EAT_COOLDOWN_FRAMES;
+                        }
+                    }
                 }
             }
         }
