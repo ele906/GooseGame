@@ -84,13 +84,29 @@ export class Goose {
                 this.migrating = false;
                 this.energy = Math.min(100, this.energy + 20);
             }
-        } else if (this.state === GooseState.GOSLING && this.parent) {
-            const targetX = this.parent.x + this.flockOffsetX;
-            const targetY = this.parent.y + this.flockOffsetY;
-            const dx = targetX - this.x;
-            const dy = targetY - this.y;
-            this.vx = dx / 20 + Math.random() * 0.6 - 0.3;
-            this.vy = dy / 20 + Math.random() * 0.6 - 0.3;
+        } else if (this.state === GooseState.GOSLING) {
+            // Find closest adult (fall back to parent if none)
+            const adults = flock.filter(g => g.state === GooseState.ADULT);
+            let closestAdult = this.parent;
+            let minDist = Infinity;
+            for (const a of adults) {
+                const d = Math.sqrt((a.x - this.x) ** 2 + (a.y - this.y) ** 2);
+                if (d < minDist) { minDist = d; closestAdult = a; }
+            }
+            if (!closestAdult) { this._gslingDist = 0; }
+            else {
+                const targetX = closestAdult.x + this.flockOffsetX;
+                const targetY = closestAdult.y + this.flockOffsetY;
+                const dx = targetX - this.x;
+                const dy = targetY - this.y;
+                const distToTarget = Math.sqrt(dx * dx + dy * dy);
+                this._gslingDist = distToTarget;
+                // Far away → fast focused chase; close → lazy drift
+                const divisor = distToTarget > 80 ? 7 : distToTarget > 40 ? 14 : 28;
+                const jitter  = distToTarget > 80 ? 0.15 : 0.4;
+                this.vx = dx / divisor + Math.random() * jitter * 2 - jitter;
+                this.vy = dy / divisor + Math.random() * jitter * 2 - jitter;
+            }
         } else {
             if (Math.random() < 0.08) {
                 this.vx += Math.random() * 0.22 - 0.11;
@@ -112,11 +128,16 @@ export class Goose {
 
             this.vx *= 0.997;
             this.vy *= 0.997;
-            const regenRate = currentDifficulty === 'hard' ? 0.03 : currentDifficulty === 'normal' ? 0.07 : 0.1;
+            const baseRegen  = currentDifficulty === 'hard' ? 0.03 : currentDifficulty === 'normal' ? 0.07 : 0.1;
+            const moveSpd    = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+            const exerciseBonus = moveSpd > 0.1 ? moveSpd * 0.1 : 0; // up to ~+50% regen at full speed
+            const regenRate  = baseRegen + exerciseBonus;
             if (this.energy < 100) this.energy = Math.min(100, this.energy + regenRate);
         }
 
-        const maxSpeed = this.state === GooseState.GOSLING ? 0.3 : 0.4;
+        const maxSpeed = this.state === GooseState.GOSLING
+            ? (this._gslingDist > 80 ? 0.6 : this._gslingDist > 40 ? 0.42 : 0.25)
+            : 0.4;
         const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
         if (speed > maxSpeed) {
             this.vx = (this.vx / speed) * maxSpeed;

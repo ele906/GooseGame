@@ -122,23 +122,28 @@
     <div class="modal-overlay" id="instructionsModal">
         <div class="modal-box">
             <button class="modal-close" id="closeModal" aria-label="Close">&#x2715;</button>
-            <h3> How to Play</h3>
+            <h3>How to Play</h3>
             <ul>
-                <li>🐥 <strong> Eggs </strong> hatch into <strong> goslings</strong>. Goslings </strong> grow into <strong> adult geese</strong>. </li>
-                <li>🐣 Use <strong>Hatch</strong> button to lay eggs.  </li>
-                <li>🦊 Use <strong> Hide </strong> button to avoid <strong> predators </strong> (foxes and eagles). </li>
-                <li>🔊 <strong> HONK </strong> at predators to try to scare them away. </li>
-                <li>🧭 <strong>Migrate</strong> when vegetation gets sparse with short or long fligts. </li>
-                <li>⚡ Long flights, storms or bad habitats may affect <strong>Health</strong>. Low health affects survival rates. </li>
-                <li>🌡️ <strong>Climate zones affect survival rates</strong>. Migrate to a different climate if needed.
+                <li>🐣 <strong>Hatch</strong> to lay eggs. Eggs hatch into goslings, goslings grow into adults. Max flock: <strong>100 geese</strong> total.</li>
+                <li>🦊 <strong>Hide</strong> to take cover from predators — but it's not foolproof. Predators may still sniff you out (5% easy, 10% normal, 15% hard).</li>
+                <li>📢 <strong>Honk</strong> to scare off predators. Effectiveness scales with flock health — sick geese honk weakly. Spam too many honks in a row and the flock <em>loses its voice</em> for ~2 weeks, hurting health.</li>
+                <li>🧭 <strong>Migrate</strong> when vegetation gets sparse. Larger flocks burn through habitat faster:
                     <ul>
-                        <li>☀️ <strong> Temperate:</strong> Ideal habitat for geese, best survival chances</li>
-                        <li>🌨️ <strong> Subarctic/Subtropical:</strong> Satisfactory climate for geese</li>
-                        <li>🌴 <strong> Tropical: </strong> Harsher conditions, temperature too high and lacks water </strong></li>
-                        <li>❄️ <strong> Arctic / Antarctic: </strong> Extreme conditions, unfavorable for survival. </li>
+                        <li>🐦 <strong>15+ geese:</strong> vegetation depletes noticeably faster</li>
+                        <li>🐦🐦 <strong>40+ geese:</strong> rapid depletion, high energy drain if you stay</li>
+                        <li>🐦🐦🐦 <strong>50+ geese:</strong> must migrate roughly every month or the flock suffers</li>
                     </ul>
                 </li>
-                <li></li>
+                <li>⚡ <strong>Health</strong> matters — low health hurts survival, honk strength, and gosling growth. Moving geese recover health faster than idle ones.</li>
+                <li>⭐ <strong>Score</strong> accumulates each week based on your flock: adults count most, goslings half, eggs a quarter. Goslings that survive to adulthood give a bonus.</li>
+                <li>🌡️ <strong>Climate zones</strong> affect survival. Migrate to a better zone if needed:
+                    <ul>
+                        <li>☀️ <strong>Temperate:</strong> Ideal — best survival chances</li>
+                        <li>🌨️ <strong>Subarctic / Subtropical:</strong> Manageable</li>
+                        <li>🌴 <strong>Tropical:</strong> Harsh — heat and low water</li>
+                        <li>❄️ <strong>Arctic / Antarctic:</strong> Extreme — avoid if possible</li>
+                    </ul>
+                </li>
             </ul>
             <button class="modal-start-btn" id="startGameBtn">Let's Go! 🪿</button>
         </div>
