@@ -385,7 +385,7 @@ export class Game {
         // Larger flocks shorten how long you can stay in one spot
         const flockPressure = totalFlock >= 50 ? 10 :
                               totalFlock >= 40 ? 7  :
-                              totalFlock >= 15 ? 4  : 0;
+                              totalFlock >= 20 ? 2  : 0;
         const effectiveThreshold = Math.max(3, this.vegWarnThreshold - Math.floor(adultCount / 5) - flockPressure);
 
         if (adultCount >= 4) {
@@ -416,7 +416,7 @@ export class Game {
         }
 
         // Large-flock overcrowding pressure (stacks with vegetation drain above)
-        const overcrowdLimit = totalFlock >= 40 ? 8 : totalFlock >= 15 ? 10 : 12;
+        const overcrowdLimit = totalFlock >= 50 ? 8 : totalFlock >= 40 ? 10 : totalFlock >= 20 ? 14 : 16;
         if (adultCount > overcrowdLimit && this.weeksAtLocation >= 4) {
             const excess = adultCount - overcrowdLimit;
             const crowdDrain = Math.min(8, Math.floor(excess * 0.6));
@@ -433,6 +433,11 @@ export class Game {
         // Lone goose event
         if (this.loneGooseCooldown > 0) {
             this.loneGooseCooldown--;
+            // Single-gender flock: cap cooldown so the needed goose arrives within ~2-3 months
+            const flockAdults = this.geese.filter(g => g.state === GooseState.ADULT);
+            const needsGender = flockAdults.length > 0 &&
+                (!flockAdults.some(g => g.gender === 'male') || !flockAdults.some(g => g.gender === 'female'));
+            if (needsGender && this.loneGooseCooldown > 12) this.loneGooseCooldown = 12;
         } else {
             this.spawnLoneGoose();
             this.loneGooseCooldown = 25 + Math.floor(Math.random() * 23);
@@ -1023,7 +1028,12 @@ export class Game {
         else if (edge === 2) { sx = Math.random() * this.width;  sy = this.height; }
         else                 { sx = 0;                           sy = Math.random() * this.height; }
 
-        const gender = Math.random() < 0.5 ? 'male' : 'female';
+        const adults = this.geese.filter(g => g.state === GooseState.ADULT);
+        const hasMale   = adults.some(g => g.gender === 'male');
+        const hasFemale = adults.some(g => g.gender === 'female');
+        // If flock is single-gender, heavily bias toward the missing gender
+        const femalePct = !hasFemale ? 0.85 : !hasMale ? 0.15 : 0.5;
+        const gender = Math.random() < femalePct ? 'female' : 'male';
         const goose = new Goose(GooseState.ADULT, 0, sx, sy, gender);
         goose.game = this;
         goose.loneGoose = true;
