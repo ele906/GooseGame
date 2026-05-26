@@ -251,7 +251,7 @@ window.addEventListener('load', () => {
         errorEl.textContent = '';
         document.getElementById('submitScoreBtn').textContent = 'Submitting...';
         try {
-            await submitScore(clean, Math.floor(game.gameTime / 120), currentDifficulty);
+            await submitScore(clean, Math.round(game.score), currentDifficulty);
             document.getElementById('scoreSubmitForm').style.display = 'none';
             document.getElementById('scoreModalText').textContent = '🎉 Score submitted! Ready to play again?';
             document.getElementById('viewLeaderboardBtn').style.display = '';
