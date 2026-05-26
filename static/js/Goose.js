@@ -106,6 +106,12 @@ export class Goose {
                 const jitter  = distToTarget > 80 ? 0.15 : 0.4;
                 this.vx = dx / divisor + Math.random() * jitter * 2 - jitter;
                 this.vy = dy / divisor + Math.random() * jitter * 2 - jitter;
+                // Reflect off boundaries so goslings don't get pinned
+                const m = 50;
+                if (this.x < m + 10 && this.vx < 0) this.vx =  Math.abs(this.vx) + 0.1;
+                if (this.x > width  - m - 10 && this.vx > 0) this.vx = -(Math.abs(this.vx) + 0.1);
+                if (this.y < m + 10 && this.vy < 0) this.vy =  Math.abs(this.vy) + 0.1;
+                if (this.y > height - m - 10 && this.vy > 0) this.vy = -(Math.abs(this.vy) + 0.1);
             }
         } else {
             if (Math.random() < 0.08) {

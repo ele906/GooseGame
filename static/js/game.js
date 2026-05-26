@@ -357,7 +357,7 @@ export class Game {
         if (this.weather === 'storm') {
             this.geese.forEach(g => {
                 const drain = g.hiding ? 3 : 15;
-                g.energy = Math.max(5, g.energy - drain);
+                g.energy = Math.max(g.hiding ? 3 : 0, g.energy - drain);
             });
             this.logEvent('⛈️ Storm saps the flock\'s health!', 'warning');
         } else if (this.weather === 'rain') {
@@ -403,7 +403,7 @@ export class Game {
                 const baseDrain   = 2 + Math.floor((this.weeksAtLocation - damageWeek) / 2);
                 const flockBonus  = totalFlock >= 50 ? 6 : totalFlock >= 40 ? 3 : 0;
                 const drain       = Math.min(14, baseDrain + flockBonus);
-                this.geese.forEach(g => { g.energy = Math.max(5, g.energy - drain); });
+                this.geese.forEach(g => { g.energy = Math.max(0, g.energy - drain); });
                 this.logEvent(`🍂 Overgrazed habitat! −${drain} health per goose.`, 'important');
             }
 
@@ -629,6 +629,23 @@ export class Game {
                     lx += (Math.random() - 0.5) * 60;
                     ly += 15 + Math.random() * 25;
                 }
+                // Strike any exposed goose near the bolt's landing point
+                const strike = this.lightningPoints[this.lightningPoints.length - 1];
+                let zapped = 0;
+                for (let i = this.geese.length - 1; i >= 0; i--) {
+                    const g = this.geese[i];
+                    if (g.hiding || g.state === GooseState.EGG) continue;
+                    const ddx = g.x - strike.x, ddy = g.y - strike.y;
+                    if (Math.sqrt(ddx * ddx + ddy * ddy) < 55) {
+                        this.geese.splice(i, 1);
+                        this.totalDied++;
+                        zapped++;
+                    }
+                }
+                if (zapped > 0) {
+                    this.playSound('alert');
+                    this.logEvent(`⚡ Lightning struck ${zapped} goose${zapped > 1 ? 'es' : ''}! Hide during storms!`, 'important');
+                }
             }
             if (this.lightningFlash > 0) this.lightningFlash--;
         } else {
@@ -837,6 +854,17 @@ export class Game {
         if (maturedCount > 0) this.logEvent(`🦆 ${maturedCount} gosling${maturedCount > 1 ? 's' : ''} matured to adults!`, 'positive');
         if (diedCount    > 0) this.logEvent(`💀 ${diedCount} gosling${diedCount > 1 ? 's' : ''} didn't survive to adulthood`, 'warning');
 
+        // Exhaustion deaths — energy drained to zero
+        let exhaustedCount = 0;
+        for (let i = this.geese.length - 1; i >= 0; i--) {
+            if (this.geese[i].energy <= 0) {
+                this.geese.splice(i, 1);
+                this.totalDied++;
+                exhaustedCount++;
+            }
+        }
+        if (exhaustedCount > 0) this.logEvent(`💀 ${exhaustedCount} goose${exhaustedCount > 1 ? 'es' : ''} collapsed from exhaustion!`, 'important');
+
         if (this.geese.length === 0) {
             this.gameOver = true;
             this.logEvent('☠️ Game Over! All geese have sadly passed away', 'important');
@@ -904,7 +932,22 @@ export class Game {
             0.2, 1.0
         ) * crowdPenalty;
         if (Math.random() < breedingSuccess) {
-            const mother = females[Math.floor(Math.random() * females.length)];
+            // Pick the female closest to any bush — she'll nest there
+            let mother = females[0];
+            let minMotherDist = Infinity;
+            for (const f of females) {
+                for (const bush of this.bushes) {
+                    const d = Math.sqrt((f.x - bush.x) ** 2 + (f.y - bush.y) ** 2);
+                    if (d < minMotherDist) { minMotherDist = d; mother = f; }
+                }
+            }
+            // Move mother to her nearest bush to nest
+            let nestBush = null, nestDist = Infinity;
+            for (const bush of this.bushes) {
+                const d = Math.sqrt((mother.x - bush.x) ** 2 + (mother.y - bush.y) ** 2);
+                if (d < nestDist) { nestDist = d; nestBush = bush; }
+            }
+            if (nestBush) { mother.x = nestBush.x; mother.y = nestBush.y; }
             const clutchSize = Math.round(clamp(
                 randomNormal(SIMULATION_PARAMS.CLUTCH_SIZE_MEAN, SIMULATION_PARAMS.CLUTCH_SIZE_STDDEV),
                 SIMULATION_PARAMS.CLUTCH_SIZE_MIN, SIMULATION_PARAMS.CLUTCH_SIZE_MAX
